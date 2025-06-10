@@ -67,7 +67,7 @@
             <a href="#" class="footer-social-link">
               <Facebook class="footer-social-icon" />
             </a>
-            <a href="#" class="footer-social-link">
+            <a href="https://www.instagram.com/" class="footer-social-link">
               <Instagram class="footer-social-icon" />
             </a>
             <a href="#" class="footer-social-link">
