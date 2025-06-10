@@ -70,16 +70,16 @@ const handleImageError = (event) => {
   flex: 0 0 auto;
   width: 200px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, margin 0.3s ease;
   margin-right: 4px;
   position: relative;
   z-index: 1;
 }
 
 .movie-card:hover {
-  transform: scale(1.5);
+  transform: scale(1.08);
   z-index: 10;
-  margin: 0 30px;
+  margin: 0 8px;
 }
 
 .movie-card-image-container {

@@ -19,7 +19,7 @@
 <script setup>
 import HeroSection from './hero-section.vue'
 import MovieSection from './movie-section.vue'
-import { useMovies } from '../composables/use-movies.js'
+import { useMovies } from '../composables/use-movies.vue'
 
 const { categories, featuredMovie, loading } = useMovies()
 </script>
