@@ -3,10 +3,17 @@
     <!-- Mostrar login se não estiver autenticado -->
     <LoginPage v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
     
-    <!-- Mostrar app principal se estiver autenticado -->
+    <!-- Mostrar gerenciamento de perfis se não há perfil ativo ou se solicitado -->
+    <ProfileManagement 
+      v-else-if="showProfileManagement" 
+      @back="showProfileManagement = false"
+      @profile-selected="handleProfileSelected"
+    />
+    
+    <!-- Mostrar app principal se estiver autenticado e tem perfil ativo -->
     <div v-else>
       <!-- Header -->
-      <Navbar @logout="handleLogout" />
+      <Navbar @logout="handleLogout" @manage-profiles="showProfileManagement = true" />
 
       <!-- Hero Section -->
       <HeroSection 
@@ -108,17 +115,21 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import Navbar from './components/navbar.vue'
 import HeroSection from './components/hero-section.vue'
 import MovieSection from './components/movie-section.vue'
 import LoginPage from './components/login-page.vue'
+import ProfileManagement from './components/profile-management.vue'
 import { Facebook, Instagram, Twitter, Youtube } from 'lucide-vue-next'
 import { useMovies } from './composables/use-movies.js'
 import { useAuth } from './composables/use-auth.js'
 
 // Use auth composable
 const { isAuthenticated } = useAuth()
+
+// Profile management state
+const showProfileManagement = ref(false)
 
 // Use the movies composable
 const {
@@ -129,6 +140,14 @@ const {
   comedyMovies,
   horrorMovies
 } = useMovies()
+
+// Verificar se há perfil ativo
+const checkActiveProfile = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("metflix_active_profile") !== null
+  }
+  return false
+}
 
 // Event handlers
 const handlePlayMovie = (movie) => {
@@ -145,11 +164,29 @@ const handleMovieSelect = (movie) => {
 
 const handleLoginSuccess = () => {
   console.log('Login successful!')
+  // Após login, mostrar seleção de perfil se não há perfil ativo
+  showProfileManagement.value = !checkActiveProfile()
 }
 
 const handleLogout = () => {
   console.log('Logout successful!')
+  // Limpar perfil ativo ao fazer logout
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("metflix_active_profile")
+  }
 }
+
+const handleProfileSelected = (profile) => {
+  console.log('Profile selected:', profile.name)
+  showProfileManagement.value = false
+}
+
+// Ao montar o componente, verificar se precisa mostrar a seleção de perfil
+onMounted(() => {
+  if (isAuthenticated.value && !checkActiveProfile()) {
+    showProfileManagement.value = true
+  }
+})
 </script>
 
 <style scoped>

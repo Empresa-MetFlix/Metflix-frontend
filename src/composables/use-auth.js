@@ -102,6 +102,8 @@ export function useAuth() {
     isAuthenticated.value = false
     if (typeof window !== "undefined") {
       localStorage.removeItem("metflix_user")
+      localStorage.removeItem("metflix_profiles")
+      localStorage.removeItem("metflix_active_profile")
     }
   }
 

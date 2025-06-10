@@ -16,9 +16,9 @@
         <Bell class="navbar-icon" />
         <div class="navbar-profile" @click="toggleProfileMenu">
           <img 
-            v-if="user?.avatar" 
-            :src="user.avatar" 
-            :alt="user?.name" 
+            v-if="currentProfileAvatar" 
+            :src="currentProfileAvatar" 
+            :alt="currentProfileName" 
             class="navbar-profile-img"
           />
           <div v-else class="navbar-profile-placeholder"></div>
@@ -30,13 +30,13 @@
             <!-- Cabeçalho do perfil -->
             <div class="navbar-profile-header">
               <img 
-                v-if="user?.avatar" 
-                :src="user.avatar" 
-                :alt="user?.name" 
+                v-if="currentProfileAvatar" 
+                :src="currentProfileAvatar" 
+                :alt="currentProfileName" 
                 class="navbar-profile-user-img"
               />
               <div class="navbar-profile-user-info">
-                <h3 class="navbar-profile-user-name">{{ user?.name || 'Usuário' }}</h3>
+                <h3 class="navbar-profile-user-name">{{ currentProfileName }}</h3>
                 <p class="navbar-profile-user-email">{{ user?.email }}</p>
               </div>
             </div>
@@ -48,15 +48,15 @@
                 <span class="navbar-profile-detail-value">Premium</span>
               </div>
               <div class="navbar-profile-detail">
-                <span class="navbar-profile-detail-label">Membro desde:</span>
-                <span class="navbar-profile-detail-value">Junho 2024</span>
+                <span class="navbar-profile-detail-label">Perfil ativo:</span>
+                <span class="navbar-profile-detail-value">{{ currentProfileName }}</span>
               </div>
             </div>
             
             <!-- Opções do menu -->
             <ul class="navbar-profile-options">
               <li class="navbar-profile-option">
-                <a href="#" class="navbar-profile-option-link">
+                <a href="#" @click.prevent="handleManageProfiles" class="navbar-profile-option-link">
                   <User class="navbar-profile-option-icon" />
                   Gerenciar perfis
                 </a>
@@ -88,15 +88,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Search, Bell, User, Settings, HelpCircle, LogOut } from 'lucide-vue-next'
 import { useAuth } from '../composables/use-auth.js'
 
-const emit = defineEmits(['logout'])
+const emit = defineEmits(['logout', 'manage-profiles'])
 const { user, logout } = useAuth()
 
 const isScrolled = ref(false)
 const showProfileMenu = ref(false)
+const activeProfile = ref(null)
+
+// Hooks must be called at the top level
+const loadActiveProfile = () => {
+  if (typeof window !== "undefined") {
+    const storedActiveProfile = localStorage.getItem("metflix_active_profile")
+    if (storedActiveProfile) {
+      activeProfile.value = JSON.parse(storedActiveProfile)
+    }
+  }
+}
+
+const currentProfileName = computed(() => {
+  return activeProfile.value?.name || user.value?.name || 'Usuário'
+})
+
+const currentProfileAvatar = computed(() => {
+  return activeProfile.value?.avatar || user.value?.avatar
+})
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 50
@@ -104,7 +123,6 @@ const handleScroll = () => {
 
 const toggleProfileMenu = () => {
   showProfileMenu.value = !showProfileMenu.value
-  console.log('Menu toggled:', showProfileMenu.value) // Debug
 }
 
 const handleLogout = () => {
@@ -113,7 +131,11 @@ const handleLogout = () => {
   emit('logout')
 }
 
-// Fechar menu ao clicar fora
+const handleManageProfiles = () => {
+  showProfileMenu.value = false
+  emit('manage-profiles')
+}
+
 const handleClickOutside = (event) => {
   if (showProfileMenu.value && !event.target.closest('.navbar-profile')) {
     showProfileMenu.value = false
@@ -123,6 +145,7 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   document.addEventListener('click', handleClickOutside)
+  loadActiveProfile()
 })
 
 onUnmounted(() => {
