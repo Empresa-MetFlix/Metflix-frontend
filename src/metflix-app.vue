@@ -1,112 +1,124 @@
 <template>
   <div class="metflix-app">
-    <!-- Header -->
-    <Navbar />
+    <!-- Mostrar login se não estiver autenticado -->
+    <LoginPage v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
+    
+    <!-- Mostrar app principal se estiver autenticado -->
+    <div v-else>
+      <!-- Header -->
+      <Navbar @logout="handleLogout" />
 
-    <!-- Hero Section -->
-    <HeroSection 
-      :hero-movie="heroMovie"
-      @play-movie="handlePlayMovie"
-      @show-more-info="handleShowMoreInfo"
-    />
+      <!-- Hero Section -->
+      <HeroSection 
+        :hero-movie="heroMovie"
+        @play-movie="handlePlayMovie"
+        @show-more-info="handleShowMoreInfo"
+      />
 
-    <!-- Content Sections -->
-    <main class="content-container">
-      <!-- Trending Now -->
-      <MovieSection 
-        title="Em alta"
-        :movies="trendingMovies"
-        @select-movie="handleMovieSelect"
-      />
-      
-      <!-- Netflix Originals -->
-      <MovieSection 
-        title="Originais Metflix"
-        :movies="originalMovies"
-        @select-movie="handleMovieSelect"
-      />
-      
-      <!-- Action Movies -->
-      <MovieSection 
-        title="Filmes de Ação"
-        :movies="actionMovies"
-        @select-movie="handleMovieSelect"
-      />
-      
-      <!-- Comedy Movies -->
-      <MovieSection 
-        title="Comédias"
-        :movies="comedyMovies"
-        @select-movie="handleMovieSelect"
-      />
-      
-      <!-- Horror Movies -->
-      <MovieSection 
-        title="Terror"
-        :movies="horrorMovies"
-        @select-movie="handleMovieSelect"
-      />
-    </main>
+      <!-- Content Sections -->
+      <main class="content-container">
+        <!-- Trending Now -->
+        <MovieSection 
+          title="Em alta"
+          :movies="trendingMovies"
+          @select-movie="handleMovieSelect"
+        />
+        
+        <!-- Netflix Originals -->
+        <MovieSection 
+          title="Originais Metflix"
+          :movies="originalMovies"
+          @select-movie="handleMovieSelect"
+        />
+        
+        <!-- Action Movies -->
+        <MovieSection 
+          title="Filmes de Ação"
+          :movies="actionMovies"
+          @select-movie="handleMovieSelect"
+        />
+        
+        <!-- Comedy Movies -->
+        <MovieSection 
+          title="Comédias"
+          :movies="comedyMovies"
+          @select-movie="handleMovieSelect"
+        />
+        
+        <!-- Horror Movies -->
+        <MovieSection 
+          title="Terror"
+          :movies="horrorMovies"
+          @select-movie="handleMovieSelect"
+        />
+      </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <div class="footer-content">
-        <div class="footer-social">
-          <a href="#" class="footer-social-link">
-            <Facebook class="footer-social-icon" />
-          </a>
-          <a href="#" class="footer-social-link">
-            <Instagram class="footer-social-icon" />
-          </a>
-          <a href="#" class="footer-social-link">
-            <Twitter class="footer-social-icon" />
-          </a>
-          <a href="#" class="footer-social-link">
-            <Youtube class="footer-social-icon" />
-          </a>
-        </div>
-        
-        <div class="footer-links">
-          <div class="footer-links-column">
-            <a href="#" class="footer-link">Audiodescrição</a>
-            <a href="#" class="footer-link">Relações com investidores</a>
-            <a href="#" class="footer-link">Avisos legais</a>
+      <!-- Footer -->
+      <footer class="footer">
+        <div class="footer-content">
+          <div class="footer-social">
+            <a href="#" class="footer-social-link">
+              <Facebook class="footer-social-icon" />
+            </a>
+            <a href="#" class="footer-social-link">
+              <Instagram class="footer-social-icon" />
+            </a>
+            <a href="#" class="footer-social-link">
+              <Twitter class="footer-social-icon" />
+            </a>
+            <a href="#" class="footer-social-link">
+              <Youtube class="footer-social-icon" />
+            </a>
           </div>
-          <div class="footer-links-column">
-            <a href="#" class="footer-link">Central de ajuda</a>
-            <a href="#" class="footer-link">Carreiras</a>
-            <a href="#" class="footer-link">Preferências de cookies</a>
+          
+          <div class="footer-links">
+            <div class="footer-links-column">
+              <a href="#" class="footer-link">Audiodescrição</a>
+              <a href="#" class="footer-link">Relações com investidores</a>
+              <a href="#" class="footer-link">Avisos legais</a>
+            </div>
+            <div class="footer-links-column">
+              <a href="#" class="footer-link">Central de ajuda</a>
+              <a href="#" class="footer-link">Carreiras</a>
+              <a href="#" class="footer-link">Preferências de cookies</a>
+            </div>
+            <div class="footer-links-column">
+              <a href="#" class="footer-link">Cartão pré-pago</a>
+              <a href="#" class="footer-link">Termos de uso</a>
+              <a href="#" class="footer-link">Informações corporativas</a>
+            </div>
+            <div class="footer-links-column">
+              <a href="#" class="footer-link">Imprensa</a>
+              <a href="#" class="footer-link">Privacidade</a>
+              <a href="#" class="footer-link">Entre em contato</a>
+            </div>
           </div>
-          <div class="footer-links-column">
-            <a href="#" class="footer-link">Cartão pré-pago</a>
-            <a href="#" class="footer-link">Termos de uso</a>
-            <a href="#" class="footer-link">Informações corporativas</a>
+          
+          <div class="footer-service">
+            <button class="footer-service-button">Código de serviço</button>
           </div>
-          <div class="footer-links-column">
-            <a href="#" class="footer-link">Imprensa</a>
-            <a href="#" class="footer-link">Privacidade</a>
-            <a href="#" class="footer-link">Entre em contato</a>
+          
+          <div class="footer-copyright">
+            © 2023-2024 Metflix, Inc.
           </div>
         </div>
-        
-        <div class="footer-service">
-          <button class="footer-service-button">Código de serviço</button>
-        </div>
-        
-        <div class="footer-copyright">
-          © 2023-2024 Metflix, Inc.
-        </div>
-      </div>
-    </footer>
+      </footer>
+    </div>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import Navbar from './components/navbar.vue'
 import HeroSection from './components/hero-section.vue'
 import MovieSection from './components/movie-section.vue'
+import LoginPage from './components/login-page.vue'
 import { Facebook, Instagram, Twitter, Youtube } from 'lucide-vue-next'
 import { useMovies } from './composables/use-movies.js'
+import { useAuth } from './composables/use-auth.js'
+
+// Use auth composable
+const { isAuthenticated } = useAuth()
 
 // Use the movies composable
 const {
@@ -130,50 +142,15 @@ const handleShowMoreInfo = (movie) => {
 const handleMovieSelect = (movie) => {
   console.log('Movie selected:', movie.title)
 }
+
+const handleLoginSuccess = () => {
+  console.log('Login successful!')
+}
+
+const handleLogout = () => {
+  console.log('Logout successful!')
+}
 </script>
-
-<style>
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap");
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html,
-body {
-  font-family: "Roboto", sans-serif;
-  background-color: #141414;
-  color: #fff;
-  overflow-x: hidden;
-  min-height: 100vh;
-}
-
-#app {
-  min-height: 100vh;
-  background-color: #141414;
-}
-
-button {
-  cursor: pointer;
-  font-family: "Roboto", sans-serif;
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-ul, ol {
-  list-style: none;
-}
-</style>
 
 <style scoped>
 .metflix-app {
