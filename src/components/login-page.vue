@@ -1,8 +1,9 @@
+
 <template>
   <div class="login-page">
     <div class="login-background">
       <img 
-        src="https://assets.nflxext.com/ffe/siteui/vlv3/9134db96-10d6-4a64-a619-a21da22f8999/a449fabb-05e4-4c8a-b062-b0bec7d03085/BR-pt-20240617-trifectadaily-perspective_alpha_website_large.jpg" 
+        src="https://reactflix-sigma-peach.vercel.app/assets/bannerNetflix.ae2c1792.jpg" 
         alt="Background" 
         class="login-background-image"
       />
@@ -84,6 +85,10 @@
             <div v-if="errors.confirmPassword" class="login-error">{{ errors.confirmPassword }}</div>
           </div>
           
+          <div v-if="errors.general" class="login-error general-error">
+            {{ errors.general }}
+          </div>
+          
           <button type="submit" class="login-button" :disabled="isLoading">
             {{ isLoading ? (isLoginMode ? 'Entrando...' : 'Criando conta...') : (isLoginMode ? 'Entrar' : 'Criar Conta') }}
           </button>
@@ -135,122 +140,147 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useAuth } from '../composables/use-auth.js'
+    import { ref } from 'vue';
+    // Importação correta conforme a sua loja agora exporta 'useAuth'
+import { useAuth } from '../composables/use-auth';
+    // --- VARIÁVEIS REATIVAS ---
+    const form = ref({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        remember: false,
+    });
+    
+    const isLoginMode = ref(true);
+    const isLoading = ref(false);
+    const errors = ref({}); // Objeto para armazenar erros de validação
+    const showPassword = ref(false);
+    const showConfirmPassword = ref(false);
+    
+    // --- INICIALIZAÇÃO DA STORE (Correta e Única) ---
+    // Removemos qualquer lógica de 'authStore' ou declaração duplicada de 'store'.
+    const store = useAuth();
 
-const emit = defineEmits(['login-success'])
-const useAuthHook = useAuth()
-const { login } = useAuthHook
+    // --- FUNÇÕES DE INTERFACE ---
 
-const isLoginMode = ref(true)
+    // Função para limpar um erro específico ao focar no campo
+    const clearError = (field) => {
+        if (errors.value[field]) {
+            delete errors.value[field];
+            if (errors.value.general) delete errors.value.general; 
+        }
+    };
+    
+    // Toggle para visibilidade da senha
+    const togglePasswordVisibility = () => {
+        showPassword.value = !showPassword.value;
+    };
 
-const form = reactive({
-  name: '',
-  email: '',
-  password: '',
-  confirmPassword: '',
-  remember: true
-})
+    // Toggle para visibilidade da confirmação de senha
+    const toggleConfirmPasswordVisibility = () => {
+        showConfirmPassword.value = !showConfirmPassword.value;
+    };
+    
+    // Toggle entre modo de login e criação de conta
+    const toggleMode = () => {
+        isLoginMode.value = !isLoginMode.value;
+        errors.value = {}; 
+        form.value.password = '';
+        form.value.confirmPassword = '';
+    };
+    
+    // Validação básica do formulário
+    const validateForm = () => {
+        errors.value = {};
+        let isValid = true;
+        
+        if (!isLoginMode.value) {
+            if (!form.value.name || form.value.name.length < 3) {
+                errors.value.name = 'Nome completo é obrigatório e deve ter no mínimo 3 caracteres.';
+                isValid = false;
+            }
+            if (form.value.password !== form.value.confirmPassword) {
+                errors.value.confirmPassword = 'As senhas não coincidem.';
+                isValid = false;
+            }
+        }
+        
+        if (!form.value.email || !/^\S+@\S+\.\S+$/.test(form.value.email)) {
+             errors.value.email = 'Insira um email válido.';
+             isValid = false;
+        }
 
-const errors = reactive({
-  name: '',
-  email: '',
-  password: '',
-  confirmPassword: ''
-})
+        if (!form.value.password || form.value.password.length < 6) {
+            errors.value.password = 'A senha deve ter no mínimo 6 caracteres.';
+            isValid = false;
+        }
 
-const isLoading = ref(false)
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
+        return isValid;
+    };
 
-const togglePasswordVisibility = () => {
-  showPassword.value = !showPassword.value
-}
 
-const toggleConfirmPasswordVisibility = () => {
-  showConfirmPassword.value = !showConfirmPassword.value
-}
+    // --- LÓGICA DE AUTENTICAÇÃO ---
 
-const clearError = (field) => {
-  errors[field] = ''
-}
+    // Lógica de login
+    const handleLogin = async () => {
+      if (!validateForm()) return;
 
-const validateForm = () => {
-  let isValid = true
-  
-  if (!isLoginMode.value && !form.name.trim()) {
-    errors.name = 'Nome é obrigatório.'
-    isValid = false
-  }
-  
-  if (!form.email) {
-    errors.email = 'Informe um email ou número de telefone válido.'
-    isValid = false
-  } else if (!/\S+@\S+\.\S+/.test(form.email)) {
-    errors.email = 'Informe um email válido.'
-    isValid = false
-  }
-  
-  if (!form.password) {
-    errors.password = 'A senha deve ter entre 4 e 60 caracteres.'
-    isValid = false
-  } else if (form.password.length < 4 || form.password.length > 60) {
-    errors.password = 'A senha deve ter entre 4 e 60 caracteres.'
-    isValid = false
-  }
-  
-  if (!isLoginMode.value) {
-    if (!form.confirmPassword) {
-      errors.confirmPassword = 'Confirme sua senha.'
-      isValid = false
-    } else if (form.password !== form.confirmPassword) {
-      errors.confirmPassword = 'As senhas não coincidem.'
-      isValid = false
-    }
-  }
-  
-  return isValid
-}
+      isLoading.value = true;
+      errors.value.general = null; 
 
-const handleSubmit = async () => {
-  if (!validateForm()) return
-  
-  isLoading.value = true
-  
-  try {
-    if (isLoginMode.value) {
-      await login(form.email, form.password)
-      emit('login-success')
-    } else {
-      // Simular cadastro
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      // Após cadastro bem-sucedido, fazer login automaticamente
-      await login(form.email, form.password)
-      emit('login-success')
-    }
-  } catch (error) {
-    if (isLoginMode.value) {
-      errors.password = 'Email ou senha incorretos. Tente novamente.'
-    } else {
-      errors.email = 'Este email já está em uso. Tente outro.'
-    }
-  } finally {
-    isLoading.value = false
-  }
-}
+      try {
+        // Chamada CORRETA para a função login do objeto de store
+        await store.login(form.value.email, form.value.password);
+        
+        console.log('Login bem-sucedido! Redirecionando...');
+        // router.push('/home'); 
+        
+      } catch (error) {
+        // Captura o erro lançado pela store
+        errors.value.general = error.message || 'Erro de autenticação. Tente novamente.';
+        console.error('Login falhou:', error.message);
+      } finally {
+        isLoading.value = false;
+      }
+    };
+    
+    // Lógica de criação de conta
+    const handleSignup = async () => {
+        if (!validateForm()) return;
 
-const toggleMode = () => {
-  isLoginMode.value = !isLoginMode.value
-  // Limpar erros ao trocar de modo
-  Object.keys(errors).forEach(key => errors[key] = '')
-  // Limpar formulário
-  Object.keys(form).forEach(key => {
-    if (key !== 'remember') form[key] = ''
-  })
-}
+        isLoading.value = true;
+        errors.value.general = null; 
+
+        try {
+            // Chamada CORRETA para a função register do objeto de store
+            await store.register(form.value.name, form.value.email, form.value.password);
+            
+            console.log('Conta criada com sucesso para:', form.value.email);
+            toggleMode(); 
+            
+        } catch (error) {
+             // Captura erro de registro
+             errors.value.email = error.message || 'Erro ao criar conta.';
+             console.error('Registro falhou:', error.message);
+        } finally {
+            isLoading.value = false;
+        }
+    };
+    
+    // Função unificada de submissão
+    const handleSubmit = () => {
+        if (isLoginMode.value) {
+            handleLogin();
+        } else {
+            handleSignup();
+        }
+    };
 </script>
 
+    
 <style scoped>
+/* O CSS é mantido inalterado */
 .login-page {
   min-height: 100vh;
   position: relative;
@@ -448,8 +478,15 @@ const toggleMode = () => {
   margin-top: 0.25rem;
 }
 
+.general-error {
+  text-align: center;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
 .has-error .login-input {
-  border-bottom: 2px solid #e87c03;
+  border: 1px solid #e87c03;
+  box-shadow: 0 0 0 1px #e87c03;
 }
 
 .login-footer {

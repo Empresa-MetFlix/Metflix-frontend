@@ -90,7 +90,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Search, Bell, User, Settings, HelpCircle, LogOut } from 'lucide-vue-next'
-import { useAuth } from '../composables/use-auth.js'
+import { useAuth } from '../composables/use-auth';
 
 const emit = defineEmits(['logout', 'manage-profiles'])
 const { user, logout } = useAuth()
