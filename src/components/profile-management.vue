@@ -10,51 +10,58 @@
       </header>
 
       <main class="profile-management-content">
-        <!-- Modo de gerenciamento - PRIORIDADE MÁXIMA -->
+
+        <!-- GERENCIAR PERFIS -->
         <div v-if="managingProfiles" class="profile-management-mode">
           <h2 class="profile-title">Gerenciar perfis:</h2>
+
           <div class="profiles-grid">
             <div 
               v-for="profile in profiles" 
               :key="profile.id"
               class="profile-card profile-manage"
+              role="button"
+              tabindex="0"
+              @click="selectProfile(profile)"
+              @keyup.enter="selectProfile(profile)"
             >
               <div class="profile-avatar">
                 <img :src="profile.avatar" :alt="profile.name" />
+
                 <div class="profile-manage-overlay">
-                  <Edit class="profile-manage-icon" @click="editProfile(profile)" />
+                  <Edit class="profile-manage-icon" @click.stop="editProfile(profile)" />
                 </div>
               </div>
+
               <span class="profile-name">{{ profile.name }}</span>
+
               <div class="profile-badges">
                 <span v-if="profile.isMain" class="profile-main-badge">Principal</span>
                 <span v-if="profile.isKids" class="profile-kids-badge">Infantil</span>
               </div>
-              
-              <!-- Botão de exclusão sempre visível para perfis não principais -->
+
               <button 
                 v-if="!profile.isMain" 
-                @click="deleteProfile(profile.id)" 
+                @click.stop="deleteProfile(profile.id)" 
                 class="profile-delete-button"
               >
                 <Trash2 class="profile-delete-icon" />
                 Excluir
               </button>
-              
-              <!-- Espaçador para perfil principal manter alinhamento -->
+
               <div v-else class="profile-spacer"></div>
             </div>
           </div>
-          
+
           <div class="profile-actions">
             <button @click="exitManageMode" class="profile-done-btn">Concluído</button>
           </div>
         </div>
 
-        <!-- Editar/Criar perfil -->
+        <!-- EDITAR / CRIAR PERFIL -->
         <div v-else-if="editingProfile || creatingProfile" class="profile-edit">
           <h2 class="profile-title">{{ editingProfile ? 'Editar perfil' : 'Adicionar perfil' }}</h2>
-          
+
           <div class="profile-edit-form">
             <div class="profile-edit-avatar-section">
               <div class="profile-edit-avatar">
@@ -64,42 +71,53 @@
                 </button>
               </div>
             </div>
-            
+
             <div class="profile-edit-fields">
               <div class="profile-field">
                 <label for="profileName">Nome do perfil:</label>
                 <input 
-                  type="text" 
                   id="profileName"
+                  type="text"
                   v-model="profileForm.name"
                   class="profile-input"
                   maxlength="20"
                   placeholder="Digite o nome do perfil"
                 />
               </div>
-              
+
               <div class="profile-field">
                 <label>Configurações:</label>
                 <div class="profile-settings">
                   <label class="profile-checkbox">
-                    <input type="checkbox" v-model="profileForm.isKids" />
+                    <input type="checkbox" v-model="profileForm.isKids">
                     <span class="profile-checkbox-text">Perfil infantil</span>
                   </label>
+
                   <label class="profile-checkbox">
-                    <input type="checkbox" v-model="profileForm.autoplay" />
+                    <input type="checkbox" v-model="profileForm.autoplay">
                     <span class="profile-checkbox-text">Reprodução automática</span>
                   </label>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <div class="profile-actions">
-            <button @click="saveProfile" class="profile-save-btn" :disabled="!profileForm.name.trim()">Salvar</button>
-            <button @click="cancelEdit" class="profile-cancel-btn">Cancelar</button>
             <button 
-              v-if="editingProfile && !editingProfile.isMain" 
-              @click="deleteProfile(editingProfile.id)" 
+              @click="saveProfile" 
+              class="profile-save-btn"
+              :disabled="!profileForm.name.trim()"
+            >
+              Salvar
+            </button>
+
+            <button @click="cancelEdit" class="profile-cancel-btn">
+              Cancelar
+            </button>
+
+            <button 
+              v-if="editingProfile && !editingProfile.isMain"
+              @click="deleteProfile(editingProfile.id)"
               class="profile-delete-btn"
             >
               Excluir perfil
@@ -107,204 +125,194 @@
           </div>
         </div>
 
-        <!-- Seleção de perfil - PADRÃO -->
+        <!-- SELEÇÃO DE PERFIL -->
         <div v-else class="profile-selection">
           <h2 class="profile-title">Quem está assistindo?</h2>
+
           <div class="profiles-grid">
             <div 
               v-for="profile in profiles" 
               :key="profile.id"
               class="profile-card"
               :class="{ 'profile-selected': selectedProfile?.id === profile.id }"
+              role="button"
+              tabindex="0"
               @click="selectProfile(profile)"
+              @keyup.enter="selectProfile(profile)"
             >
               <div class="profile-avatar">
                 <img :src="profile.avatar" :alt="profile.name" />
+
                 <div class="profile-edit-overlay">
                   <Edit class="profile-edit-icon" @click.stop="editProfile(profile)" />
                 </div>
-                <div v-if="selectedProfile?.id === profile.id" class="profile-selected-indicator">
+
+                <div 
+                  v-if="selectedProfile?.id === profile.id" 
+                  class="profile-selected-indicator"
+                >
                   <Check class="profile-check-icon" />
                 </div>
               </div>
+
               <span class="profile-name">{{ profile.name }}</span>
             </div>
-            
-            <!-- Adicionar novo perfil -->
-            <div class="profile-card profile-add" @click="createProfile">
+
+            <!-- + ADD PERFIL -->
+            <div 
+              class="profile-card profile-add"
+              role="button"
+              tabindex="0"
+              @click="createProfile"
+              @keyup.enter="createProfile"
+            >
               <div class="profile-avatar profile-avatar-add">
                 <Plus class="profile-add-icon" />
               </div>
               <span class="profile-name">Adicionar perfil</span>
             </div>
           </div>
-          
+
           <div class="profile-actions">
             <button @click="manageProfiles" class="profile-manage-btn">Gerenciar perfis</button>
+
             <button 
               @click="confirmProfileSelection" 
               class="profile-done-btn"
-              :disabled="!selectedProfile"
+              :disabled="!hasSelected"
             >
               Concluído
             </button>
           </div>
         </div>
 
-        <!-- Seletor de avatar -->
-        <div v-if="showAvatarSelector" class="avatar-selector-overlay" @click="showAvatarSelector = false">
+        <!-- SELETOR DE AVATAR -->
+        <div 
+          v-if="showAvatarSelector" 
+          class="avatar-selector-overlay"
+          @click="showAvatarSelector = false"
+        >
           <div class="avatar-selector" @click.stop>
             <h3>Escolha um avatar:</h3>
+
             <div class="avatar-grid">
               <div 
                 v-for="avatar in availableAvatars" 
                 :key="avatar.id"
                 class="avatar-option"
                 @click="selectAvatar(avatar.url)"
+                tabindex="0"
+                role="button"
+                @keyup.enter="selectAvatar(avatar.url)"
               >
                 <img :src="avatar.url" :alt="avatar.name" />
               </div>
             </div>
-            <button @click="showAvatarSelector = false" class="avatar-close-btn">Fechar</button>
+
+            <button class="avatar-close-btn" @click="showAvatarSelector = false">
+              Fechar
+            </button>
           </div>
         </div>
+
       </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { Edit, Plus, Trash2, Camera, Check } from 'lucide-vue-next'
 
 const emit = defineEmits(['back', 'profile-selected'])
 
-// Estado local
 const editingProfile = ref(null)
 const creatingProfile = ref(false)
 const managingProfiles = ref(false)
 const showAvatarSelector = ref(false)
 const selectedProfile = ref(null)
 
-// Perfis - gerenciados localmente
 const profiles = ref([])
 
-// Carregar perfis do localStorage
-const loadProfiles = () => {
-  if (typeof window !== "undefined") {
-    const storedProfiles = localStorage.getItem("metflix_profiles")
-    if (storedProfiles) {
-      profiles.value = JSON.parse(storedProfiles)
-    } else {
-      // Perfis padrão
-      profiles.value = [
-        {
-          id: 1,
-          name: "Usuário Principal",
-          avatar: "https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABdpkabKqQAxyWzo6QW_ZnPz1IZLqlmNfK-t4L1VIeV1DY00JhLo_LMVFp936keDxj-V5UELAVJrU--iUUY2MaDxQSSO-0qw.png",
-          isMain: true,
-          isKids: false,
-          autoplay: true
-        },
-        {
-          id: 2,
-          name: "Infantil",
-          avatar: "https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABfNXUMVXGhnCZwPI1SghnGpmUgqS_J-owMff-jig42xPF7vozQS1ge5xTgPTzH7ttfNYQXnsYs4vrMBaadh4E6RTJMVepojWqOXx.png",
-          isMain: false,
-          isKids: true,
-          autoplay: false
-        }
-      ]
-      saveProfiles()
-    }
-  }
-}
-
-// Salvar perfis no localStorage
-const saveProfiles = () => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("metflix_profiles", JSON.stringify(profiles.value))
-  }
-}
-
-// Carregar perfil ativo
-const loadActiveProfile = () => {
-  if (typeof window !== "undefined") {
-    const storedActiveProfile = localStorage.getItem("metflix_active_profile")
-    if (storedActiveProfile) {
-      const activeProfile = JSON.parse(storedActiveProfile)
-      // Encontrar o perfil correspondente nos perfis carregados
-      const matchingProfile = profiles.value.find(p => p.id === activeProfile.id)
-      if (matchingProfile) {
-        selectedProfile.value = matchingProfile
-      } else {
-        // Se não encontrar, selecionar o primeiro perfil
-        selectedProfile.value = profiles.value.length > 0 ? profiles.value[0] : null
-      }
-    } else {
-      // Se não há perfil ativo, selecionar o primeiro perfil
-      selectedProfile.value = profiles.value.length > 0 ? profiles.value[0] : null
-    }
-  }
-}
-
-// Salvar perfil ativo
-const saveActiveProfile = (profile) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("metflix_active_profile", JSON.stringify(profile))
-  }
-}
+const hasSelected = computed(() => !!selectedProfile.value)
 
 const profileForm = reactive({
-  name: '',
-  avatar: '',
+  name: "",
+  avatar: "",
   isKids: false,
   autoplay: true
 })
 
-const availableAvatars = ref([
-  {
-    id: 1,
-    name: 'Avatar 1',
-    url: 'https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABdpkabKqQAxyWzo6QW_ZnPz1IZLqlmNfK-t4L1VIeV1DY00JhLo_LMVFp936keDxj-V5UELAVJrU--iUUY2MaDxQSSO-0qw.png'
-  },
-  {
-    id: 2,
-    name: 'Avatar 2',
-    url: 'https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABfNXUMVXGhnCZwPI1SghnGpmUgqS_J-owMff-jig42xPF7vozQS1ge5xTgPTzH7ttfNYQXnsYs4vrMBaadh4E6RTJMVepojWqOXx.png'
-  },
-  {
-    id: 3,
-    name: 'Avatar 3',
-    url: 'https://cdn.pixabay.com/photo/2024/01/15/11/36/batman-8510022_1280.png'
-  },
-  {
-    id: 4,
-    name: 'Avatar 4',
-    url: 'https://wallpaperaccess.com/full/8256467.jpg'
-  },
-  {
-    id: 5,
-    name: 'Avatar 5',
-    url: 'https://i.pinimg.com/originals/5f/11/c3/5f11c32009dc2b10b91b45a7df0498f4.jpg'
-  },
-  {
-    id: 6,
-    name: 'Avatar 6',
-    url: 'https://images8.alphacoders.com/511/thumb-1920-511954.jpg'
+const loadProfiles = () => {
+  const stored = localStorage.getItem("metflix_profiles")
+  if (stored) {
+    try {
+      profiles.value = JSON.parse(stored)
+    } catch {
+      profiles.value = []
+    }
   }
-])
+
+  if (!profiles.value.length) {
+    profiles.value = [
+      {
+        id: 1,
+        name: "Usuário Principal",
+        avatar: "https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABdpkabKqQAxyWzo6QW_ZnPz1IZLqlmNfK-t4L1VIeV1DY00JhLo_LMVFp936keDxj-V5UELAVJrU--iUUY2MaDxQSSO-0qw.png",
+        isMain: true,
+        isKids: false,
+        autoplay: true
+      },
+      {
+        id: 2,
+        name: "Infantil",
+        avatar: "https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABfNXUMVXGhnCZwPI1SghnGpmUgqS_J-owMff-jig42xPF7vozQS1ge5xTgPTzH7ttfNYQXnsYs4vrMBaadh4E6RTJMVepojWqOXx.png",
+        isMain: false,
+        isKids: true,
+        autoplay: false
+      }
+    ]
+    saveProfiles()
+  }
+}
+
+const saveProfiles = () => {
+  localStorage.setItem("metflix_profiles", JSON.stringify(profiles.value))
+}
+
+const loadActiveProfile = () => {
+  const stored = localStorage.getItem("metflix_active_profile")
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      selectedProfile.value = profiles.value.find(p => p.id === parsed.id) || profiles.value[0]
+    } catch {
+      selectedProfile.value = profiles.value[0]
+    }
+  } else {
+    selectedProfile.value = profiles.value[0]
+  }
+}
+
+const saveActiveProfile = (profile) => {
+  localStorage.setItem("metflix_active_profile", JSON.stringify(profile))
+}
 
 const selectProfile = (profile) => {
   selectedProfile.value = profile
 }
 
 const confirmProfileSelection = () => {
-  if (selectedProfile.value) {
-    saveActiveProfile(selectedProfile.value)
-    emit('profile-selected', selectedProfile.value)
-    emit('back')
-  }
+  if (!selectedProfile.value) return
+
+  saveActiveProfile(selectedProfile.value)
+  emit("profile-selected", selectedProfile.value)
+  emit("back")
+
+  managingProfiles.value =
+  creatingProfile.value =
+  showAvatarSelector.value = false
+  editingProfile.value = null
 }
 
 const editProfile = (profile) => {
@@ -313,77 +321,55 @@ const editProfile = (profile) => {
   profileForm.avatar = profile.avatar
   profileForm.isKids = profile.isKids
   profileForm.autoplay = profile.autoplay
-  managingProfiles.value = false
 }
 
 const createProfile = () => {
   creatingProfile.value = true
-  profileForm.name = ''
+  profileForm.name = ""
   profileForm.avatar = availableAvatars.value[0].url
   profileForm.isKids = false
   profileForm.autoplay = true
-  managingProfiles.value = false
 }
 
 const saveProfile = () => {
   if (!profileForm.name.trim()) return
 
   if (editingProfile.value) {
-    // Editar perfil existente
     const index = profiles.value.findIndex(p => p.id === editingProfile.value.id)
-    if (index !== -1) {
-      profiles.value[index] = {
-        ...profiles.value[index],
-        name: profileForm.name,
-        avatar: profileForm.avatar,
-        isKids: profileForm.isKids,
-        autoplay: profileForm.autoplay
-      }
-      
-      // Se o perfil editado é o ativo, atualizar o perfil ativo
-      if (selectedProfile.value?.id === editingProfile.value.id) {
-        selectedProfile.value = profiles.value[index]
-        saveActiveProfile(selectedProfile.value)
-      }
+    profiles.value[index] = {
+      ...profiles.value[index],
+      ...profileForm
+    }
+
+    if (selectedProfile.value?.id === editingProfile.value.id) {
+      selectedProfile.value = profiles.value[index]
+      saveActiveProfile(selectedProfile.value)
     }
   } else {
-    // Criar novo perfil
-    const newProfile = {
+    profiles.value.push({
       id: Date.now(),
-      name: profileForm.name,
-      avatar: profileForm.avatar,
       isMain: false,
-      isKids: profileForm.isKids,
-      autoplay: profileForm.autoplay
-    }
-    profiles.value.push(newProfile)
+      ...profileForm
+    })
   }
 
   saveProfiles()
   cancelEdit()
 }
 
-const deleteProfile = (profileId) => {
-  if (confirm('Tem certeza que deseja excluir este perfil?')) {
-    const profileToDelete = profiles.value.find(p => p.id === profileId)
-    
-    if (profileToDelete && !profileToDelete.isMain) {
-      profiles.value = profiles.value.filter(p => p.id !== profileId)
-      saveProfiles()
-      
-      // Se o perfil excluído é o ativo, limpar o perfil ativo
-      if (selectedProfile.value?.id === profileId) {
-        selectedProfile.value = profiles.value.length > 0 ? profiles.value[0] : null
-        if (selectedProfile.value) {
-          saveActiveProfile(selectedProfile.value)
-        }
-      }
-      
-      if (editingProfile.value?.id === profileId) {
-        cancelEdit()
-      }
-    }
+const deleteProfile = (id) => {
+  const target = profiles.value.find(p => p.id === id)
+  if (!target || target.isMain) return alert("Não é possível excluir o perfil principal.")
+
+  profiles.value = profiles.value.filter(p => p.id !== id)
+  saveProfiles()
+
+  if (selectedProfile.value?.id === id) {
+    selectedProfile.value = profiles.value[0] || null
+    selectedProfile.value && saveActiveProfile(selectedProfile.value)
   }
+
+  cancelEdit()
 }
 
 const cancelEdit = () => {
@@ -393,27 +379,34 @@ const cancelEdit = () => {
 
 const manageProfiles = () => {
   managingProfiles.value = true
-  editingProfile.value = null
-  creatingProfile.value = false
 }
 
 const exitManageMode = () => {
   managingProfiles.value = false
-  editingProfile.value = null
-  creatingProfile.value = false
 }
 
-const selectAvatar = (avatarUrl) => {
-  profileForm.avatar = avatarUrl
+const availableAvatars = ref([
+  { id: 1, name: 'Avatar 1', url: 'https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABdpkabKqQAxyWzo6QW_ZnPz1IZLqlmNfK-t4L1VIeV1DY00JhLo_LMVFp936keDxj-V5UELAVJrU--iUUY2MaDxQSSO-0qw.png' },
+  { id: 2, name: 'Avatar 2', url: 'https://occ-0-1723-1722.1.nflxso.net/dnm/api/v6/K6hjPJd6cR6FpVELC5Pd6ovHRSk/AAAABfNXUMVXGhnCZwPI1SghnGpmUgqS_J-owMff-jig42xPF7vozQS1ge5xTgPTzH7ttfNYQXnsYs4vrMBaadh4E6RTJMVepojWqOXx.png' },
+  { id: 3, name: 'Avatar 3', url: 'https://cdn.pixabay.com/photo/2024/01/15/11/36/batman-8510022_1280.png' },
+  { id: 4, name: 'Avatar 4', url: 'https://wallpaperaccess.com/full/8256467.jpg' },
+  { id: 5, name: 'Avatar 5', url: 'https://i.pinimg.com/originals/5f/11/c3/5f11c32009dc2b10b91b45a7df0498f4.jpg' },
+  { id: 6, name: 'Avatar 6', url: 'https://images8.alphacoders.com/511/thumb-1920-511954.jpg' }
+])
+
+const selectAvatar = (url) => {
+  profileForm.avatar = url
   showAvatarSelector.value = false
 }
 
-// Inicializar dados ao montar o componente
 onMounted(() => {
   loadProfiles()
   loadActiveProfile()
 })
 </script>
+
+
+
 
 <style scoped>
 .profile-management {

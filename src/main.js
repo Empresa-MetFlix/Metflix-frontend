@@ -1,14 +1,13 @@
 import { createApp } from "vue"
+import { createPinia } from "pinia"
 import App from "./App.vue"
+import router from "./router"
 
-createApp(App).mount("#app")
+const app = createApp(App)
 
-    import { createPinia } from 'pinia'; // <-- Adicione esta linha
-    
-   
+const pinia = createPinia()
 
-    const app = createApp(App);
+app.use(pinia)   // <-- Apenas UMA vez
+app.use(router)
 
-    app.use(createPinia()); // <-- Adicione esta linha
-    // app.use(router);
-
+app.mount("#app")

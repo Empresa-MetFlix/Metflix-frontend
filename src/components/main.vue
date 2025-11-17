@@ -1,25 +1,49 @@
 <template>
-  <main class="bg-black min-h-screen">
-    <HeroSection :movie="featuredMovie" />
-
-    <div class="relative z-10 -mt-32 pb-16">
-      <MovieSection
-        v-for="(category, index) in categories"
-        :key="index"
-        :category="category"
+  <div>
+    <HeroSection :hero-movie="heroMovie" />
+    <main class="content-container">
+      <MovieSection 
+        title="Em alta"
+        :movies="trendingMovies"
       />
-    </div>
-
-    <div v-if="loading" class="bg-black min-h-screen flex items-center justify-center">
-      <div class="text-white text-2xl">Carregando Metflix...</div>
-    </div>
-  </main>
+      <MovieSection 
+        title="Originais Metflix"
+        :movies="originalMovies"
+      />
+      <MovieSection 
+        title="Filmes de Ação"
+        :movies="actionMovies"
+      />
+      <MovieSection 
+        title="Comédias"
+        :movies="comedyMovies"
+      />
+      <MovieSection 
+        title="Terror"
+        :movies="horrorMovies"
+      />
+    </main>
+  </div>
 </template>
 
 <script setup>
-import HeroSection from './hero-section.vue'
-import MovieSection from './movie-section.vue'
-import { useMovies } from '../composables/use-movies.vue'
+import { useMovies } from "../composables/use-movies.js"
+import HeroSection from "./hero-section.vue"
+import MovieSection from "./movie-section.vue"
 
-const { categories, featuredMovie, loading } = useMovies()
+const {
+  heroMovie,
+  trendingMovies,
+  originalMovies,
+  actionMovies,
+  comedyMovies,
+  horrorMovies
+} = useMovies()
 </script>
+
+<style scoped>
+/* O estilo é definido principalmente nos componentes filhos (HeroSection, MovieSection) */
+.bg-black {
+    background-color: #000;
+}
+</style>

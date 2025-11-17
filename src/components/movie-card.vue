@@ -13,18 +13,37 @@
         loading="lazy"
         @error="handleImageError"
       />
+
       <div class="movie-card-overlay" :class="{ 'active': isHovered }">
         <div class="movie-card-buttons">
-          <button class="movie-card-button movie-card-play-button">
+
+          <!-- PLAY (bloqueia clique do card) -->
+          <button 
+            class="movie-card-button movie-card-play-button"
+            @click.stop
+          >
             <Play class="movie-card-button-icon" />
           </button>
-          <button class="movie-card-button">
-            <Plus class="movie-card-button-icon" />
+
+          <!-- FAVORITOS -->
+          <button 
+            class="movie-card-button"
+            @click.stop="handleToggleFavorite"
+          >
+            <Check v-if="isFavorited" class="movie-card-button-icon" />
+            <Plus v-else class="movie-card-button-icon" />
           </button>
-          <button class="movie-card-button">
+
+          <!-- LIKE (bloqueia clique do card) -->
+          <button 
+            class="movie-card-button"
+            @click.stop
+          >
             <ThumbsUp class="movie-card-button-icon" />
           </button>
+
         </div>
+
         <div class="movie-card-info">
           <div class="movie-card-match">97% relevante</div>
           <div class="movie-card-rating">
@@ -33,18 +52,23 @@
           </div>
           <div class="movie-card-genres">
             <span>Suspense</span>
-            <span>Sobrenatural</span>
-            <span>Terror</span>
+            <span>Fantasia</span>
+            <span>Drama</span>
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-if="!isHovered" class="movie-card-title-hover">
+      {{ movie.title }}
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Play, Plus, ThumbsUp } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Play, Plus, ThumbsUp, Check } from 'lucide-vue-next'
+import { useFavoritesStore } from '@/stores/use-favorites.js'
 
 const props = defineProps({
   movie: {
@@ -54,52 +78,63 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['select-movie'])
-const isHovered = ref(false)
 
+const isHovered = ref(false)
+const favoritesStore = useFavoritesStore()
+
+// Verifica se o filme está favoritado
+const isFavorited = computed(() => {
+  return favoritesStore.isFavorite(props.movie.id)
+})
+
+// Clique no card
 const selectMovie = () => {
   emit('select-movie', props.movie)
 }
 
+// Fallback de imagem
 const handleImageError = (event) => {
-  event.target.src = `https://via.placeholder.com/300x450/141414/e50914?text=${encodeURIComponent(props.movie.title)}`
+  event.target.src = `https://placehold.co/500x750/141414/ffffff?text=${encodeURIComponent(props.movie.title)}`
+}
+
+// ADD / REMOVE da Minha Lista
+const handleToggleFavorite = () => {
+  // Enviar o filme completo
+  favoritesStore.toggleFavorite(props.movie)
 }
 </script>
 
+
 <style scoped>
 .movie-card {
-  flex: 0 0 auto;
-  width: 200px;
-  cursor: pointer;
-  transition: transform 0.3s ease, margin 0.3s ease;
-  margin-right: 4px;
+  width: 250px;
+  min-width: 250px;
+  height: 140px;
   position: relative;
-  z-index: 1;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* Efeito de zoom e sombra ao passar o mouse */
 .movie-card:hover {
-  transform: scale(1.08);
-  z-index: 10;
-  margin: 0 8px;
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
+  z-index: 20; /* Garante que o card fique acima dos vizinhos */
 }
 
 .movie-card-image-container {
-  position: relative;
-  overflow: hidden;
-  border-radius: 4px;
   width: 100%;
-  padding-top: 150%;
-  background-color: #141414;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  height: 100%;
+  position: relative;
 }
 
 .movie-card-image {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: all 0.3s ease;
 }
 
 .movie-card-overlay {
@@ -141,32 +176,54 @@ const handleImageError = (event) => {
   transition: all 0.2s ease;
 }
 
+/* Estilo para o botão de 'favoritado' */
+.movie-card-button:nth-child(2) {
+  border-color: rgba(255, 255, 255, 0.5); /* Borda mais clara para ícones secundários */
+}
+
+/* Cor de fundo para o botão de 'favoritado' (se estiver ativo) */
+.movie-card-button:nth-child(2) > .lucide-check {
+  background-color: #fff;
+  color: #000;
+  border: none;
+  padding: 2px; /* Ajuste para o ícone de check */
+  border-radius: 50%;
+}
+
 .movie-card-button:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
 .movie-card-play-button {
   background-color: #fff;
+  border: none;
 }
 
-.movie-card-play-button .movie-card-button-icon {
-  color: #000;
+.movie-card-play-button:hover {
+  background-color: rgba(255, 255, 255, 0.9);
 }
 
 .movie-card-button-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: #fff;
 }
 
+.movie-card-play-button > .movie-card-button-icon {
+  color: #000;
+  fill: #000;
+}
+
 .movie-card-info {
-  font-size: 0.7rem;
+  display: flex;
+  flex-direction: column;
   color: #fff;
 }
 
 .movie-card-match {
+  font-size: 0.9rem;
+  font-weight: 600;
   color: #46d369;
-  font-weight: 700;
   margin-bottom: 4px;
 }
 
@@ -174,22 +231,55 @@ const handleImageError = (event) => {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 0.8rem;
   margin-bottom: 4px;
 }
 
 .movie-card-age {
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  padding: 0 4px;
+  border: 1px solid #fff;
+  padding: 1px 4px;
+  font-size: 0.7rem;
+}
+
+.movie-card-duration {
+  color: #b3b3b3;
 }
 
 .movie-card-genres {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: #b3b3b3;
 }
 
 .movie-card-genres span:not(:last-child)::after {
   content: "•";
-  margin: 0 4px;
+  margin-left: 8px;
+  color: #b3b3b3;
+}
+
+.movie-card-title-hover {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0 10px 5px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  /* Inicialmente oculto */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.movie-card:hover .movie-card-title-hover {
+  opacity: 1;
+}
+
+/* Garantir que o card expanda corretamente */
+.movie-card:hover {
+  /* No hover, o card pode se expandir em altura ou largura se a imagem for grande */
+  /* Mantendo a altura original para não quebrar a grade, mas permitindo o scale(1.05) */
 }
 </style>
