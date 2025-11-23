@@ -29,13 +29,16 @@ import { ref, onMounted } from 'vue'
 import { useFavoritesStore } from '../stores/use-favorites'
 import MovieCard from '../components/movie-card.vue'
 
+const props = defineProps({
+  profile: { type: Object, required: true }
+})
+
 const favoritesStore = useFavoritesStore()
 const loading = ref(true)
 
 onMounted(async () => {
   try {
-    // CHAMADA IMPORTANTE
-    await favoritesStore.loadFavorites()
+    await favoritesStore.loadFavorites(props.profile.id)
   } catch (e) {
     console.error("Erro ao carregar favoritos:", e)
   } finally {

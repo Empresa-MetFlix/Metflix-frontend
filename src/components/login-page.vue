@@ -140,142 +140,124 @@
 </template>
 
 <script setup>
-    import { ref } from 'vue';
-    // Importação correta conforme a sua loja agora exporta 'useAuth'
-import { useAuth } from '../composables/use-auth';
-    // --- VARIÁVEIS REATIVAS ---
-    const form = ref({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        remember: false,
-    });
-    
-    const isLoginMode = ref(true);
-    const isLoading = ref(false);
-    const errors = ref({}); // Objeto para armazenar erros de validação
-    const showPassword = ref(false);
-    const showConfirmPassword = ref(false);
-    
-    // --- INICIALIZAÇÃO DA STORE (Correta e Única) ---
-    // Removemos qualquer lógica de 'authStore' ou declaração duplicada de 'store'.
-    const store = useAuth();
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/use-auth' // seu composable atual
 
-    // --- FUNÇÕES DE INTERFACE ---
+// --- reactive ---
+const form = ref({
+  name: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  remember: false,
+})
 
-    // Função para limpar um erro específico ao focar no campo
-    const clearError = (field) => {
-        if (errors.value[field]) {
-            delete errors.value[field];
-            if (errors.value.general) delete errors.value.general; 
-        }
-    };
-    
-    // Toggle para visibilidade da senha
-    const togglePasswordVisibility = () => {
-        showPassword.value = !showPassword.value;
-    };
+const isLoginMode = ref(true)
+const isLoading = ref(false)
+const errors = ref({})
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 
-    // Toggle para visibilidade da confirmação de senha
-    const toggleConfirmPasswordVisibility = () => {
-        showConfirmPassword.value = !showConfirmPassword.value;
-    };
-    
-    // Toggle entre modo de login e criação de conta
-    const toggleMode = () => {
-        isLoginMode.value = !isLoginMode.value;
-        errors.value = {}; 
-        form.value.password = '';
-        form.value.confirmPassword = '';
-    };
-    
-    // Validação básica do formulário
-    const validateForm = () => {
-        errors.value = {};
-        let isValid = true;
-        
-        if (!isLoginMode.value) {
-            if (!form.value.name || form.value.name.length < 3) {
-                errors.value.name = 'Nome completo é obrigatório e deve ter no mínimo 3 caracteres.';
-                isValid = false;
-            }
-            if (form.value.password !== form.value.confirmPassword) {
-                errors.value.confirmPassword = 'As senhas não coincidem.';
-                isValid = false;
-            }
-        }
-        
-        if (!form.value.email || !/^\S+@\S+\.\S+$/.test(form.value.email)) {
-             errors.value.email = 'Insira um email válido.';
-             isValid = false;
-        }
+const store = useAuth()
+const router = useRouter()
 
-        if (!form.value.password || form.value.password.length < 6) {
-            errors.value.password = 'A senha deve ter no mínimo 6 caracteres.';
-            isValid = false;
-        }
+const clearError = (field) => {
+  if (errors.value[field]) {
+    delete errors.value[field]
+    if (errors.value.general) delete errors.value.general
+  }
+}
 
-        return isValid;
-    };
+const togglePasswordVisibility = () => (showPassword.value = !showPassword.value)
+const toggleConfirmPasswordVisibility = () => (showConfirmPassword.value = !showConfirmPassword.value)
+const toggleMode = () => {
+  isLoginMode.value = !isLoginMode.value
+  errors.value = {}
+  form.value.password = ''
+  form.value.confirmPassword = ''
+}
 
+const validateForm = () => {
+  errors.value = {}
+  let isValid = true
 
-    // --- LÓGICA DE AUTENTICAÇÃO ---
+  if (!isLoginMode.value) {
+    if (!form.value.name || form.value.name.length < 3) {
+      errors.value.name = 'Nome completo é obrigatório e deve ter no mínimo 3 caracteres.'
+      isValid = false
+    }
+    if (form.value.password !== form.value.confirmPassword) {
+      errors.value.confirmPassword = 'As senhas não coincidem.'
+      isValid = false
+    }
+  }
 
-    // Lógica de login
-    const handleLogin = async () => {
-      if (!validateForm()) return;
+  if (!form.value.email || !/^\S+@\S+\.\S+$/.test(form.value.email)) {
+    errors.value.email = 'Insira um email válido.'
+    isValid = false
+  }
 
-      isLoading.value = true;
-      errors.value.general = null; 
+  if (!form.value.password || form.value.password.length < 6) {
+    errors.value.password = 'A senha deve ter no mínimo 6 caracteres.'
+    isValid = false
+  }
 
-      try {
-        // Chamada CORRETA para a função login do objeto de store
-        await store.login(form.value.email, form.value.password);
-        
-        console.log('Login bem-sucedido! Redirecionando...');
-        // router.push('/home'); 
-        
-      } catch (error) {
-        // Captura o erro lançado pela store
-        errors.value.general = error.message || 'Erro de autenticação. Tente novamente.';
-        console.error('Login falhou:', error.message);
-      } finally {
-        isLoading.value = false;
-      }
-    };
-    
-    // Lógica de criação de conta
-    const handleSignup = async () => {
-        if (!validateForm()) return;
+  return isValid
+}
 
-        isLoading.value = true;
-        errors.value.general = null; 
+// --- LOGIN ---
+const handleLogin = async () => {
+  if (!validateForm()) return
 
-        try {
-            // Chamada CORRETA para a função register do objeto de store
-            await store.register(form.value.name, form.value.email, form.value.password);
-            
-            console.log('Conta criada com sucesso para:', form.value.email);
-            toggleMode(); 
-            
-        } catch (error) {
-             // Captura erro de registro
-             errors.value.email = error.message || 'Erro ao criar conta.';
-             console.error('Registro falhou:', error.message);
-        } finally {
-            isLoading.value = false;
-        }
-    };
-    
-    // Função unificada de submissão
-    const handleSubmit = () => {
-        if (isLoginMode.value) {
-            handleLogin();
-        } else {
-            handleSignup();
-        }
-    };
+  isLoading.value = true
+  errors.value.general = null
+
+  try {
+    await store.login(form.value.email, form.value.password)
+
+    if (form.value.remember) {
+      localStorage.setItem('metflix_remember', 'true')
+    } else {
+      localStorage.removeItem('metflix_remember')
+    }
+
+    // 🔥 AGORA LOGIN → HOME DIRETO
+    await router.push("/")
+
+  } catch (error) {
+    errors.value.general = error.message || 'Erro de autenticação. Tente novamente.'
+    console.error('Login falhou:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// --- SIGNUP ---
+const handleSignup = async () => {
+  if (!validateForm()) return
+
+  isLoading.value = true
+  errors.value.general = null
+
+  try {
+    await store.register(form.value.name, form.value.email, form.value.password)
+    // após criar conta, alterna para modo login para permitir o login imediatamente
+    isLoginMode.value = true
+    form.value.password = ''
+    form.value.confirmPassword = ''
+  } catch (error) {
+    errors.value.email = error.message || 'Erro ao criar conta.'
+    console.error('Registro falhou:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const handleSubmit = () => {
+  if (isLoginMode.value) handleLogin()
+  else handleSignup()
+}
 </script>
 
     

@@ -1,140 +1,177 @@
-import { ref, readonly } from "vue"
+import { ref, readonly, computed } from "vue"
 import axios from 'axios'
 
-// --- CONFIGURAÇÃO DA API ---
-// ATENÇÃO: VERIFIQUE E AJUSTE ESTE ENDEREÇO.
-const API_BASE_URL = 'http://localhost:19003/api' 
-// Agora, esta rota está configurada corretamente no seu Django urls.py
-const REGISTER_URL = `${API_BASE_URL}/auth/register/` 
-const LOGIN_URL = `${API_BASE_URL}/token/`      
+// --- Configuração da API ---
+const API_BASE_URL = 'http://localhost:19003/api'
+const REGISTER_URL = `${API_BASE_URL}/auth/register/`
+const LOGIN_URL = `${API_BASE_URL}/token/`
 
-// --- Estado Global da Autenticação ---
-const user = ref(null) 
+// --- Estados globais ---
+const user = ref(null)
 const isAuthenticated = ref(false)
+const profiles = ref([])
+const activeProfileId = ref(null)
 
-/**
- * Tenta carregar o token ou usuário do localStorage ao inicializar.
- */
-const loadUserFromStorage = () => {
-    if (typeof window !== "undefined") {
-        const storedToken = localStorage.getItem("metflix_auth_token")
-        const storedUser = localStorage.getItem("metflix_user")
+// --- Inicialização ---
+const loadFromStorage = () => {
+  if (typeof window !== "undefined") {
+    const storedToken = localStorage.getItem("metflix_auth_token")
+    const storedUser = localStorage.getItem("metflix_user")
+    const storedProfiles = localStorage.getItem("metflix_profiles")
+    const storedActiveProfile = localStorage.getItem("metflix_active_profile")
 
-        if (storedToken && storedUser) {
-            // Se houver um token, assume que o usuário está logado
-            user.value = JSON.parse(storedUser)
-            isAuthenticated.value = true
-            // Configura o token no axios para futuras requisições autenticadas
-            axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
-        }
+    // 🔥 garante que apenas quando houver token e user o login é válido
+    if (storedToken && storedUser) {
+      user.value = JSON.parse(storedUser)
+      isAuthenticated.value = true
+      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
+    } else {
+      isAuthenticated.value = false
     }
+
+    if (storedProfiles) profiles.value = JSON.parse(storedProfiles)
+    if (storedActiveProfile) activeProfileId.value = JSON.parse(storedActiveProfile)
+  }
 }
 
-// Inicializa o estado
-loadUserFromStorage()
+loadFromStorage()
 
-/**
- * @description Hook composable/Store para gerenciar a autenticação via API real.
- */
+// --- RETORNA PERFIL ATIVO ---
+const activeProfile = computed(() => {
+  return profiles.value.find(p => p.id === activeProfileId.value) || null
+})
+
 export function useAuth() {
-  
-  // Função de cadastro (chama a API real)
+
+  // ------------------------------
+  // REGISTRO
+  // ------------------------------
   const register = async (name, email, password) => {
     try {
-        const payload = { name, email, password }
-        const response = await axios.post(REGISTER_URL, payload)
-        
-        // O servidor deve retornar os dados do novo usuário criado
-        return response.data;
-        
+      const payload = { name, email, password }
+      const response = await axios.post(REGISTER_URL, payload)
+      return response.data
     } catch (error) {
-        console.error("Erro na comunicação com a API de registro:", error)
-        
-        if (error.response) {
-            const errorData = error.response.data
-            // Prioriza mensagens de erro detalhadas do servidor
-            const message = errorData.detail || errorData.error || errorData.email?.[0] || "Erro de validação ou no servidor."
-            throw new Error(message)
-        }
-        
-        throw new Error("Falha na conexão com o servidor.")
+      console.error("Erro no registro:", error)
+      if (error.response) {
+        const data = error.response.data
+        const message = data.detail || data.error || data.email?.[0] || "Erro de validação."
+        throw new Error(message)
+      }
+      throw new Error("Falha na conexão com o servidor.")
     }
   }
 
-  // Função de login (chama a API real - rota JWT)
+
+  // ------------------------------
+  // LOGIN
+  // ------------------------------
   const login = async (email, password) => {
     try {
-        // A rota /api/token/ espera 'username' e 'password', 
-        // mas como seu USERNAME_FIELD é 'email', você deve enviar 'email' e 'password'
-        // Depende de como a sua implementação JWT está configurada! 
-        // Se ela espera 'username', ajuste aqui. Se espera 'email', está correto.
-        const payload = { email, password } 
-        
-        const response = await axios.post(LOGIN_URL, payload)
+      const payload = { email, password }
+      const response = await axios.post(LOGIN_URL, payload)
+      const { access: token } = response.data
 
-        // Assumindo que o back-end JWT retorna: { refresh: '...', access: '...' }
-        const { access: token } = response.data 
+      if (!token) throw new Error("Token ausente na resposta da API.")
 
-        if (!token) {
-            throw new Error("Resposta da API incompleta (token ausente).")
-        }
-        
-        // **IMPORTANTE**: Após obter o token, você deve fazer uma requisição separada para 
-        // obter os dados do usuário autenticado (geralmente para /api/usuarios/me).
-        // Por simplificação, vamos mockar o usuário para testar o fluxo de autenticação, 
-        // mas em produção, você faria um GET para o endpoint de perfil.
+      // MOCK dos perfis
+      const tempUser = { email, name: email.split('@')[0] }
+      const tempProfiles = [
+        { id: 1, name: "Principal", avatar: "https://placehold.co/40x40/e50914/ffffff?text=P", isMain: true },
+        { id: 2, name: "Kids", avatar: "https://placehold.co/40x40/e50914/ffffff?text=K", isKids: true }
+      ]
 
-        const tempUser = { email, name: email.split('@')[0] } // Mock simples
+      // Atualiza estado
+      user.value = tempUser
+      isAuthenticated.value = true
+      profiles.value = tempProfiles
+      activeProfileId.value = tempProfiles[0].id
 
-        // 1. Atualizar estado local
-        user.value = tempUser
-        isAuthenticated.value = true
+      // Salva no localStorage
+      localStorage.setItem("metflix_auth_token", token)
+      localStorage.setItem("metflix_user", JSON.stringify(tempUser))
+      localStorage.setItem("metflix_profiles", JSON.stringify(tempProfiles))
+      localStorage.setItem("metflix_active_profile", JSON.stringify(activeProfileId.value))
 
-        // 2. Salvar token e usuário no LocalStorage
-        if (typeof window !== "undefined") {
-            localStorage.setItem("metflix_auth_token", token)
-            localStorage.setItem("metflix_user", JSON.stringify(tempUser))
-        }
-        
-        // 3. Configurar axios para requisições futuras
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
-        return tempUser
-
+      return tempUser
     } catch (error) {
-        console.error("Erro na comunicação com a API de login:", error)
-        
-        if (error.response && error.response.status === 401) {
-             throw new Error("Credenciais inválidas.")
-        }
-        if (error.response) {
-            const errorData = error.response.data
-            const message = errorData.detail || errorData.error || "Erro desconhecido ao logar."
-            throw new Error(message)
-        }
-        
-        throw new Error("Falha na conexão com o servidor.")
+      console.error("Erro no login:", error)
+      if (error.response) {
+        if (error.response.status === 401) throw new Error("Credenciais inválidas.")
+        const message = error.response.data.detail || error.response.data.error || "Erro desconhecido."
+        throw new Error(message)
+      }
+      throw new Error("Falha na conexão com o servidor.")
     }
   }
 
-  // Função de logout
-  const logout = () => {
-    user.value = null
-    isAuthenticated.value = false
-    
-    // Remover token do LocalStorage e do axios
-    if (typeof window !== "undefined") {
-        localStorage.removeItem("metflix_auth_token")
-        localStorage.removeItem("metflix_user")
-    }
-    delete axios.defaults.headers.common['Authorization']
+
+  // ------------------------------
+  // LOGOUT
+  // ------------------------------
+ const logout = () => {
+  // 1) Remover APENAS o token e user — deslogar corretamente
+  localStorage.removeItem("metflix_auth_token")
+  localStorage.removeItem("metflix_user")
+
+  // 2) NÃO remover perfis e NÃO remover perfil ativo!
+  //    Isso que estava quebrando tudo:
+  // localStorage.removeItem("metflix_profiles")
+  // localStorage.removeItem("metflix_active_profile")
+
+  // 3) Atualizar estados globais
+  user.value = null
+  isAuthenticated.value = false
+
+  // Perfis e activeProfileId continuam intactos!
+  // profiles.value = []
+  // activeProfileId.value = null
+
+  delete axios.defaults.headers.common['Authorization']
+}
+
+
+  // ------------------------------
+  // TROCA DE PERFIL
+  // ------------------------------
+  const setActiveProfile = (profileId) => {
+    const exists = profiles.value.find(p => p.id === profileId)
+    if (!exists) return
+    activeProfileId.value = profileId
+    localStorage.setItem("metflix_active_profile", JSON.stringify(profileId))
   }
+
+
+  // ------------------------------
+  // 🔥 FUNÇÃO QUE FALTAVA — checkAuth()
+  // ------------------------------
+  const checkAuth = () => {
+    const token = localStorage.getItem("metflix_auth_token")
+    const storedUser = localStorage.getItem("metflix_user")
+
+    if (token && storedUser) {
+      isAuthenticated.value = true
+      return true
+    }
+
+    isAuthenticated.value = false
+    return false
+  }
+
 
   return {
     user: readonly(user),
     isAuthenticated: readonly(isAuthenticated),
+    profiles: readonly(profiles),
+    activeProfile,
     login,
     register,
     logout,
+    setActiveProfile,
+
+    // 🔥 ADICIONADO
+    checkAuth
   }
 }

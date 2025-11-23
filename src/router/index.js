@@ -1,108 +1,35 @@
-"use client"
-
-import { createRouter, createWebHistory } from "vue-router"
-import { useAuthStore } from "../stores/use-auth.js"
-
-
-// Layout principal (Navbar + estrutura)
-import MetflixApp from "../metflix-app.vue"
-
-// Páginas
-import Login from "../components/login-page.vue"
-import ProfileManagement from "../components/profile-management.vue"
-import MinhaLista from "../components/MinhaLista.vue"
-
-// Placeholder (temporário)
-const Placeholder = { 
-  template: `
-    <div class="text-white p-10 pt-24 min-h-screen bg-black text-center">
-      <h1>Página em Construção</h1>
-      <p class="mt-4 text-gray-400">
-        Volte para 
-        <router-link to="/" class="text-red-600 hover:text-red-700 font-semibold">Início</router-link>.
-      </p>
-    </div>
-  `
-}
+import { createRouter, createWebHistory } from "vue-router";
+import LoginPage from "../components/login-page.vue";   // login isolado
+import MetflixApp from "../metflix-app.vue";            // app principal (com navbar e footer)
+import HomeView from "../components/main.vue";         // exemplo de página interna
+import ProfileManagement from "../components/ProfileManagement.vue";
+import MinhaLista from "../components/MinhaLista.vue";
 
 const routes = [
-  // Login (rota pública)
   {
     path: "/login",
     name: "Login",
-    component: Login,
-    meta: { guest: true }
+    component: LoginPage, // totalmente isolado
   },
-
-  // Gerenciar Perfis
-  {
-    path: "/profiles",
-    name: "Profiles",
-    component: ProfileManagement,
-    meta: { requiresAuth: true },
-  },
-
-  // LAYOUT PRINCIPAL (Navbar + Router-view interno)
   {
     path: "/",
-    component: MetflixApp,
-    meta: { requiresAuth: true },
-
-    // ROTAS FILHAS — ÁREA LOGADA
+    name: "Home",
+    component: MetflixApp, // só aparece se usuário logado
     children: [
-      {
-        path: "",
-        name: "Home",
-        component: () => import("../components/main.vue"),
-        meta: { requiresAuth: true }
-      },
-      {
-        path: "minha-lista",
-        name: "MinhaLista",
-        component: MinhaLista,
-        meta: { requiresAuth: true }
-      },
-      {
-        path: "series",
-        name: "Series",
-        component: Placeholder,
-        meta: { requiresAuth: true }
-      },
-      {
-        path: "filmes",
-        name: "Filmes",
-        component: Placeholder,
-        meta: { requiresAuth: true }
-      },
-      {
-        path: "bombando",
-        name: "Bombando",
-        component: Placeholder,
-        meta: { requiresAuth: true }
-      }
-    ]
-  }
-]
+      { path: "", component: HomeView },
+      { path: "minha-lista", component: MinhaLista },
+      { path: "profile-management", component: ProfileManagement },
+    ],
+  },
+  {
+    path: "/:catchAll(.*)", // redireciona qualquer rota inválida para login
+    redirect: "/login",
+  },
+];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  linkActiveClass: 'navbar-link-active',
-})
+});
 
-
-router.beforeEach((to, from, next) => {
-  const auth = useAuthStore()
-  const isLogged = auth.checkAuth()
-
-  if (to.meta.requiresAuth && !isLogged) {
-    return next({ name: "Login" })
-  }
-
-  if (to.meta.guest && isLogged) {
-    return next({ name: "Home" })
-  }
-
-  next()
-})
-export default router
+export default router;

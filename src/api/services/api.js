@@ -8,7 +8,7 @@
     }
 
     const api = axios.create({
-        baseURL: API_BASE_URL,
+        baseURL:   "https://metflix-backend.onrender.com/api",
         headers: {
             'Content-Type': 'application/json',
         },

@@ -1,53 +1,47 @@
 <template>
-  <header class="navbar" :class="{ 'scrolled': isScrolled }">
+  <!-- Não renderiza a navbar se estiver na rota de login -->
+  <header v-if="!isLoginRoute" class="navbar" :class="{ 'scrolled': isScrolled }">
     <nav class="navbar-container">
       <div class="navbar-left">
-        <!-- Logo Metflix (Link para Início) -->
-        <router-link :to="{ name: 'Home' }" class="navbar-logo">METFLIX</router-link>
-        
-        <!-- Links de Navegação usando router-link -->
+        <div class="navbar-logo">METFLIX</div>
         <ul class="navbar-links">
-          <li><router-link :to="{ name: 'Home' }" class="navbar-link">Início</router-link></li>
-          <li><router-link :to="{ name: 'Series' }" class="navbar-link">Séries</router-link></li>
-          <li><router-link :to="{ name: 'Filmes' }" class="navbar-link">Filmes</router-link></li>
-          <li><router-link :to="{ name: 'Bombando' }" class="navbar-link">Bombando</router-link></li>
-          <li><router-link :to="{ name: 'MinhaLista' }" class="navbar-link">Minha Lista</router-link></li>
+          <li>
+            <router-link to="/" class="navbar-link navbar-link-active">Início</router-link>
+          </li>
+          <li><div class="navbar-link">Séries</div></li>
+          <li><div class="navbar-link">Filmes</div></li>
+          <li><div class="navbar-link">Bombando</div></li>
+          <li>
+            <router-link to="/minha-lista" class="navbar-link">Minha Lista</router-link>
+          </li>
         </ul>
       </div>
-      
+
       <div class="navbar-right">
-        <Search class="navbar-icon" />
-        <Bell class="navbar-icon" />
-        
-        <div class="navbar-profile" @click="toggleProfileMenu">
-          <img 
-            v-if="currentProfileAvatar" 
-            :src="currentProfileAvatar" 
-            :alt="currentProfileName" 
-            class="navbar-profile-img"
-          />
-          <div v-else class="navbar-profile-placeholder"></div>
-          
-          <!-- Menu dropdown -->
+        <!-- Ícones completos -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="navbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" class="navbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+
+        <!-- Perfil -->
+        <div class="navbar-profile" @mouseenter="showProfileMenu = true" @mouseleave="showProfileMenu = false">
+          <img :src="currentProfileAvatar" :alt="currentProfileName" class="navbar-profile-img" />
           <div v-if="showProfileMenu" class="navbar-profile-menu">
             <div class="navbar-profile-arrow"></div>
-            
-            <!-- Cabeçalho do perfil -->
             <div class="navbar-profile-header">
-              <img 
-                v-if="currentProfileAvatar" 
-                :src="currentProfileAvatar" 
-                :alt="currentProfileName" 
-                class="navbar-profile-img-lg"
-              />
-              <div v-else class="navbar-profile-placeholder-lg"></div>
+              <img :src="currentProfileAvatar" :alt="currentProfileName" class="navbar-profile-img-lg"/>
               <div class="navbar-profile-details-text">
                 <span class="navbar-profile-name-lg">{{ currentProfileName }}</span>
-                <span class="navbar-profile-email-lg">{{ currentUserEmail }}</span>
+                <span class="navbar-profile-email-lg">{{ userEmail || 'usuário@metflix.com' }}</span>
               </div>
             </div>
 
-            <!-- Detalhes da conta (Mock) -->
             <div class="navbar-profile-details">
               <div class="navbar-profile-detail">
                 <span class="navbar-profile-detail-label">Plano:</span>
@@ -58,23 +52,35 @@
                 <span class="navbar-profile-detail-value">Ativo</span>
               </div>
             </div>
-            
-            <!-- Opções do menu -->
+
             <ul class="navbar-profile-options">
               <li class="navbar-profile-option" @click="goToProfiles">
-                <User class="navbar-option-icon" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="navbar-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
                 Gerenciar Perfis
               </li>
               <li class="navbar-profile-option">
-                <Settings class="navbar-option-icon" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="navbar-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12.22 2h-.44C9.75 2 9 2.75 9 4v.5C9 5.33 8.33 6 7.5 6H4c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h3.5c.83 0 1.5.67 1.5 1.5V20c0 1.25.75 2 2.22 2h.44c1.47 0 2.22-.75 2.22-2v-.5c0-.83.67-1.5 1.5-1.5H20c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-3.5c-.83 0-1.5-.67-1.5-1.5V4c0-1.25-.75-2-2.22-2z"/>
+                </svg>
                 Conta
               </li>
               <li class="navbar-profile-option">
-                <HelpCircle class="navbar-option-icon" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="navbar-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <path d="M12 17h.01"/>
+                </svg>
                 Ajuda
               </li>
               <li class="navbar-profile-option navbar-profile-logout" @click="handleLogout">
-                <LogOut class="navbar-option-icon" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="navbar-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
                 Sair da Metflix
               </li>
             </ul>
@@ -86,58 +92,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { Search, Bell, User, Settings, HelpCircle, LogOut } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 
-// IMPORTAÇÃO CORRETA DO STORE DO PINIA
-import { useAuth } from '../composables/use-auth.js'
+const props = defineProps({
+  profile: Object,
+  userEmail: String,
+})
+const emit = defineEmits(['logout', 'manage-profiles'])
 
-const router = useRouter()
-const authStore = useAuth()   // ✔ agora está reativo e conectado ao app
+const route = useRoute()
+const isLoginRoute = computed(() => route.path === '/login')
 
 const isScrolled = ref(false)
 const showProfileMenu = ref(false)
 
-const currentProfileName = ref(
-  localStorage.getItem("metflix_active_profile") || "Perfil"
-)
+const currentProfileName = computed(() => props.profile?.name || 'Selecione um Perfil')
+const currentProfileAvatar = computed(() => props.profile?.avatar || 'https://placehold.co/40x40/555555/ffffff?text=P')
 
-const currentProfileAvatar = ref('https://placehold.co/40x40/e50914/ffffff?text=P')
-const currentUserEmail = ref('usuario@metflix.com')
+const handleScroll = () => { isScrolled.value = window.scrollY > 50 }
+onMounted(() => window.addEventListener('scroll', handleScroll))
+onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 
-// Scroll da navbar
-const handleScroll = () => {
-  isScrolled.value = window.scrollY > 0
-}
-
-// Abrir/Fechar menu
-const toggleProfileMenu = () => {
-  showProfileMenu.value = !showProfileMenu.value
-}
-
-// Logout CORRIGIDO
-const handleLogout = () => {
-  authStore.logout()  // ✔ AGORA FUNCIONA
-  localStorage.removeItem("metflix_active_profile")
-  router.push({ name: 'Login' })
-  showProfileMenu.value = false
-}
-
-// Gerenciar perfis
-const goToProfiles = () => {
-  router.push({ name: 'Profiles' })
-  showProfileMenu.value = false
-}
-
-onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
-})
+const handleLogout = () => { emit('logout'); showProfileMenu.value = false }
+const goToProfiles = () => { emit('manage-profiles'); showProfileMenu.value = false }
 </script>
+
 
 
 <style scoped>
@@ -204,14 +184,14 @@ onUnmounted(() => {
   color: #e5e5e5;
   font-size: 0.9rem;
   transition: color 0.2s;
+  cursor: pointer;
 }
 
 .navbar-link:hover {
   color: var(--metflix-gray);
 }
 
-/* Classe de link ativo definida no router/index.js */
-.navbar-link.navbar-link-active {
+.navbar-link-active {
   font-weight: 600;
   color: #fff;
 }
@@ -248,22 +228,15 @@ onUnmounted(() => {
   object-fit: cover;
 }
 
-.navbar-profile-placeholder {
-  width: 32px;
-  height: 32px;
-  background-color: #555;
-  border-radius: 4px;
-}
-
 /* Menu Dropdown */
 .navbar-profile-menu {
   position: absolute;
   top: 40px;
-  right: -10px; /* Ajuste a posição para alinhar com o ícone */
+  right: -10px; 
   background-color: rgba(20, 20, 20, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
-  min-width: 200px;
+  min-width: 280px; /* Aumentado para caber o layout */
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
@@ -287,11 +260,11 @@ onUnmounted(() => {
   gap: 10px;
 }
 
-.navbar-profile-img-lg,
-.navbar-profile-placeholder-lg {
+.navbar-profile-img-lg {
   width: 40px;
   height: 40px;
   border-radius: 4px;
+  object-fit: cover;
 }
 
 .navbar-profile-details-text {
@@ -356,6 +329,7 @@ onUnmounted(() => {
   padding: 12px 16px;
   font-size: 0.9rem;
   cursor: pointer;
+  color: #fff;
   transition: background-color 0.2s;
 }
 
@@ -366,6 +340,11 @@ onUnmounted(() => {
 .navbar-option-icon {
   width: 20px;
   height: 20px;
+  color: var(--metflix-gray);
+}
+
+.navbar-profile-option:hover .navbar-option-icon {
+    color: #fff;
 }
 
 .navbar-profile-logout {
