@@ -1,0 +1,16 @@
+{
+  "name": "Metflix",
+  "short_name": "Metflix",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111",
+  "theme_color": "#111",
+  "description": "Seu site estilo Netflix em PWA",
+  "icons": [
+    {
+      "src": "/M.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
