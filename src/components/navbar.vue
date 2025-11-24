@@ -8,9 +8,9 @@
           <li>
             <router-link to="/" class="navbar-link navbar-link-active">Início</router-link>
           </li>
-          <li><div class="navbar-link">Séries</div></li>
-          <li><div class="navbar-link">Filmes</div></li>
-          <li><div class="navbar-link">Bombando</div></li>
+          <router-link to="/series">Séries</router-link>
+<router-link to="/filmes">Filmes</router-link>
+<router-link to="/bombando">Bombando</router-link>
           <li>
             <router-link to="/minha-lista" class="navbar-link">Minha Lista</router-link>
           </li>

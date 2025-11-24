@@ -4,6 +4,9 @@ import MetflixApp from "../metflix-app.vue";            // app principal (com na
 import HomeView from "../components/main.vue";         // exemplo de página interna
 import ProfileManagement from "../components/ProfileManagement.vue";
 import MinhaLista from "../components/MinhaLista.vue";
+import SeriesPage from "../components/SeriesPage.vue";
+import FilmesPage from "../components/FilmesPage.vue";
+import BombandoPage from "../components/BombandoPage.vue";
 
 const routes = [
   {
@@ -14,15 +17,22 @@ const routes = [
   {
     path: "/",
     name: "Home",
-    component: MetflixApp, // só aparece se usuário logado
+    component: MetflixApp, // só aparece se usuário estiver logado
     children: [
       { path: "", component: HomeView },
       { path: "minha-lista", component: MinhaLista },
       { path: "profile-management", component: ProfileManagement },
+
+      // 🔥 Novas páginas na navbar:
+      { path: "series", name: "Series", component: SeriesPage },
+      { path: "filmes", name: "Filmes", component: FilmesPage },
+      { path: "bombando", name: "Bombando", component: BombandoPage },
     ],
   },
+
+  // rota inválida → login
   {
-    path: "/:catchAll(.*)", // redireciona qualquer rota inválida para login
+    path: "/:catchAll(.*)",
     redirect: "/login",
   },
 ];
