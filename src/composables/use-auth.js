@@ -1,12 +1,11 @@
 import { ref, readonly } from "vue"
 import axios from 'axios'
 
-// --- CONFIGURAÇÃO DA API ---
-// ATENÇÃO: VERIFIQUE E AJUSTE ESTE ENDEREÇO.
-const API_BASE_URL = 'http://localhost:19003/api' 
-// Agora, esta rota está configurada corretamente no seu Django urls.py
-const REGISTER_URL = `${API_BASE_URL}/auth/register/` 
-const LOGIN_URL = `${API_BASE_URL}/token/`      
+// ✅ USAR A VARIÁVEL DE AMBIENTE
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+
+const REGISTER_URL = `${API_BASE_URL}/auth/register/`
+const LOGIN_URL = `${API_BASE_URL}/token/`     
 
 // --- Estado Global da Autenticação ---
 const user = ref(null) 
