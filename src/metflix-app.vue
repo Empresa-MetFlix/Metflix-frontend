@@ -1,22 +1,6 @@
 <template>
   <div class="metflix-app">
-
-    <!-- 1️⃣ Tela de Login -->
-    <LoginPage 
-      v-if="!isAuthenticated"
-      @login-success="handleLoginSuccess"
-    />
-
-    <!-- 2️⃣ Seleção / Gerenciamento de Perfis -->
-    <ProfileManagement
-      v-else-if="showProfileManagement"
-      @profile-selected="handleProfileSelected"
-      @profile-confirmed="handleProfileConclude"
-      @back="showProfileManagement = false"
-    />
-
-    <!-- 3️⃣ Aplicação Principal -->
-    <div v-else>
+    <div v-if="isAuthenticated && activeProfile">
       <Navbar
         :profile="activeProfile"
         @logout="handleLogout"
@@ -27,101 +11,125 @@
 
       <footer class="footer">
         <div class="footer-content">
-          © 2023-2024 Metflix, Inc.
+          <div class="footer-links">
+            <router-link to="/faq" class="footer-link">Perguntas frequentes</router-link>
+            <router-link to="/help" class="footer-link">Central de Ajuda</router-link>
+            <router-link to="/terms" class="footer-link">Termos de Uso</router-link>
+            <router-link to="/privacy" class="footer-link">Privacidade</router-link>
+          </div>
+          <p class="footer-text">© 2023-2024 Metflix, Inc.</p>
         </div>
       </footer>
     </div>
 
+    <ProfileManagement
+      v-else-if="isAuthenticated && !activeProfile"
+      @profile-selected="handleProfileSelected"
+      @profile-confirmed="handleProfileConclude"
+      @back="activeProfile = null"
+    />
+
+    <LoginPage 
+      v-else
+      @login-success="handleLoginSuccess"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
+import { ref, onMounted, nextTick } from "vue"
 import { useAuth } from "./composables/use-auth.js"
-
-// Componentes
+import { useRouter } from "vue-router"
 import Navbar from "./components/navbar.vue"
 import LoginPage from "./components/login-page.vue"
 import ProfileManagement from "./components/profile-management.vue"
 
-// Auth
-const { isAuthenticated, refreshAuthState } = useAuth()
+const authStore = useAuth()
+const router = useRouter()
 
-// Estado reativo do perfil ativo
+const isAuthenticated = ref(false)
+
 const activeProfile = ref(null)
 
-// Controle do gerenciador de perfis
-const showProfileManagement = ref(false)
-
-// Verifica se tem perfil ativo salvo
-const hasActiveProfile = () => {
-  return !!localStorage.getItem("metflix_active_profile")
+const checkAuth = () => {
+  const token = localStorage.getItem('metflix_auth_token')
+  isAuthenticated.value = !!token
+  console.log(' checkAuth:', isAuthenticated.value)
 }
 
-//
-// LOGIN
-//
-const handleLoginSuccess = () => {
-  refreshAuthState()
+onMounted(() => {
+  console.log(' Metflix-app montado')
+  checkAuth()
+  
+  const saved = localStorage.getItem("metflix_active_profile")
+  if (saved) {
+    try {
+      activeProfile.value = JSON.parse(saved)
+      console.log(' Perfil carregado:', activeProfile.value)
+    } catch (e) {
+      console.error(' Erro ao carregar perfil:', e)
+      localStorage.removeItem("metflix_active_profile")
+    }
+  }
+})
 
-  if (!hasActiveProfile()) {
-    showProfileManagement.value = true
+const handleLoginSuccess = async () => {
+  console.log(' Login success no metflix-app')
+  
+  await nextTick()
+  checkAuth()
+  
+  const saved = localStorage.getItem("metflix_active_profile")
+  console.log(' Perfil salvo:', saved)
+  
+  if (!saved) {
+    console.log(' Indo para seleção de perfis')
+    activeProfile.value = null
+  } else {
+    try {
+      activeProfile.value = JSON.parse(saved)
+      console.log(' Perfil carregado, indo para home:', activeProfile.value)
+      await nextTick()
+      router.push('/')
+    } catch (e) {
+      console.error(' Erro ao carregar perfil:', e)
+      activeProfile.value = null
+    }
   }
 }
 
-//
-// PERFIS
-//
-
-// Clicou em um perfil (apenas seleção visual)
 const handleProfileSelected = (profile) => {
   console.log("Profile selected:", profile.name)
 }
 
-// Confirmou o perfil (CONCLUÍDO)
-const handleProfileConclude = (profile) => {
-  console.log("Perfil concluído no MetflixApp:", profile)
-
-  // Salvar no localStorage
+const handleProfileConclude = async (profile) => {
+  console.log(" Perfil concluído:", profile)
+  
   localStorage.setItem("metflix_active_profile", JSON.stringify(profile))
-
-  // Atualiza estado reativo
   activeProfile.value = profile
-
-  // Fecha tela de perfis
-  showProfileManagement.value = false
+  
+  await nextTick()
+  router.push('/')
 }
 
-// Abriu o gerenciador via navbar
 const openProfileManagement = () => {
-  showProfileManagement.value = true
-}
-
-//
-// LOGOUT
-//
-const handleLogout = () => {
-  localStorage.removeItem("metflix_active_profile")
   activeProfile.value = null
-
-  refreshAuthState()
-  showProfileManagement.value = false
 }
 
-//
-// Ao iniciar o app
-//
-onMounted(() => {
-  if (!isAuthenticated.value) return
-
-  const saved = localStorage.getItem("metflix_active_profile")
-
-  if (saved) {
-    activeProfile.value = JSON.parse(saved)
-  } else {
-    showProfileManagement.value = true
-  }
-})
+const handleLogout = () => {
+  console.log('🚪 Fazendo logout')
+  
+  localStorage.removeItem("metflix_active_profile")
+  localStorage.removeItem("metflix_auth_token")
+  localStorage.removeItem("metflix_refresh_token")
+  
+  activeProfile.value = null
+  isAuthenticated.value = false
+  
+  authStore.logout()
+  
+  router.push('/')
+}
 </script>
 
 <style scoped>
@@ -129,5 +137,54 @@ onMounted(() => {
   min-height: 100vh;
   background-color: #141414;
   color: #fff;
+}
+
+.footer {
+  padding: 40px 60px;
+  background-color: #141414;
+  border-top: 1px solid #333;
+  margin-top: 60px;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-link {
+  color: #808080;
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.footer-link:hover {
+  color: #fff;
+}
+
+.footer-text {
+  margin: 0;
+  color: #808080;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .footer {
+    padding: 30px 20px;
+  }
+
+  .footer-links {
+    flex-direction: column;
+    gap: 15px;
+  }
 }
 </style>

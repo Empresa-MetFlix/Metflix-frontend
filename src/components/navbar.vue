@@ -2,10 +2,8 @@
   <header class="navbar" :class="{ 'scrolled': isScrolled }">
     <nav class="navbar-container">
       <div class="navbar-left">
-        <!-- Logo Metflix (Link para Início) -->
         <router-link :to="{ name: 'Home' }" class="navbar-logo">METFLIX</router-link>
         
-        <!-- Links de Navegação usando router-link -->
         <ul class="navbar-links">
           <li><router-link :to="{ name: 'Home' }" class="navbar-link">Início</router-link></li>
           <li><router-link :to="{ name: 'Series' }" class="navbar-link">Séries</router-link></li>
@@ -16,9 +14,102 @@
       </div>
       
       <div class="navbar-right">
-        <Search class="navbar-icon" />
-        <Bell class="navbar-icon" />
+        <!-- BUSCA -->
+        <div class="search-container" :class="{ active: searchActive }">
+          <Search 
+            v-show="!searchActive"
+            class="navbar-icon search-icon" 
+            @click="toggleSearch"
+          />
+          
+          <Transition name="search-expand">
+            <div v-if="searchActive" class="search-input-wrapper">
+              <Search class="search-icon-inside" />
+              <input
+                ref="searchInput"
+                v-model="searchQuery"
+                @input="handleSearch"
+                @keyup.enter="performSearch"
+                @blur="closeSearchDelayed"
+                type="text"
+                placeholder="Títulos, pessoas, gêneros"
+                class="search-input"
+              />
+              <button 
+                v-if="searchQuery" 
+                @click="clearSearch" 
+                class="search-clear"
+              >
+                ✕
+              </button>
+            </div>
+          </Transition>
+        </div>
+
+        <!-- Dropdown de Resultados -->
+        <Transition name="fade">
+          <div v-if="searchResults.length > 0 && !isSearchPage" class="search-dropdown">
+            <div class="search-dropdown-header">
+              <span>Resultados para "{{ searchQuery }}"</span>
+              <button @click="performSearch" class="view-all-btn">
+                Ver todos
+              </button>
+            </div>
+            
+            <!-- Loading State -->
+            <div v-if="searchLoading" class="search-loading">
+              <div class="mini-spinner"></div>
+              Buscando...
+            </div>
+            
+            <!-- Results -->
+            <div 
+              v-else
+              v-for="result in searchResults.slice(0, 5)" 
+              :key="result.id"
+              class="search-result-item"
+              @mousedown.prevent="selectSearchResult(result)"
+            >
+              <img :src="result.image" :alt="result.title" />
+              <div class="search-result-info">
+                <h4>{{ result.title }}</h4>
+                <span class="search-result-meta">
+                  {{ result.year || 'N/A' }} • {{ result.mediaType === 'tv' ? 'Série' : 'Filme' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Transition>
+
+        <!-- NOTIFICAÇÕES -->
+        <div class="notification-container">
+          <Bell class="navbar-icon" @click="toggleNotifications" />
+          <span v-if="unreadCount > 0" class="notification-badge">{{ unreadCount }}</span>
+        </div>
+
+        <Transition name="fade">
+          <div v-if="showNotifications" class="notifications-dropdown">
+            <div class="notifications-header">
+              <h3>Notificações</h3>
+            </div>
+            <div class="notifications-list">
+              <div 
+                v-for="notif in notifications" 
+                :key="notif.id"
+                class="notification-item"
+                :class="{ unread: !notif.read }"
+              >
+                <div class="notification-icon">🔔</div>
+                <div class="notification-content">
+                  <p>{{ notif.message }}</p>
+                  <span class="notification-time">{{ notif.time }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
         
+        <!-- PERFIL -->
         <div class="navbar-profile" @click="toggleProfileMenu">
           <img 
             v-if="currentProfileAvatar" 
@@ -28,11 +119,9 @@
           />
           <div v-else class="navbar-profile-placeholder"></div>
           
-          <!-- Menu dropdown -->
           <div v-if="showProfileMenu" class="navbar-profile-menu">
             <div class="navbar-profile-arrow"></div>
             
-            <!-- Cabeçalho do perfil -->
             <div class="navbar-profile-header">
               <img 
                 v-if="currentProfileAvatar" 
@@ -47,7 +136,6 @@
               </div>
             </div>
 
-            <!-- Detalhes da conta (Mock) -->
             <div class="navbar-profile-details">
               <div class="navbar-profile-detail">
                 <span class="navbar-profile-detail-label">Plano:</span>
@@ -59,7 +147,6 @@
               </div>
             </div>
             
-            <!-- Opções do menu -->
             <ul class="navbar-profile-options">
               <li class="navbar-profile-option" @click="goToProfiles">
                 <User class="navbar-option-icon" />
@@ -86,45 +173,127 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { Search, Bell, User, Settings, HelpCircle, LogOut } from 'lucide-vue-next'
-
-// IMPORTAÇÃO CORRETA DO STORE DO PINIA
 import { useAuth } from '../composables/use-auth.js'
+import { useMovies } from '../composables/use-movies.js'
 
 const router = useRouter()
-const authStore = useAuth()   // ✔ agora está reativo e conectado ao app
+const route = useRoute()
+const authStore = useAuth()
+const moviesStore = useMovies()
 
+// BUSCA
+const searchActive = ref(false)
+const searchQuery = ref('')
+const searchResults = ref([])
+const searchInput = ref(null)
+const searchLoading = ref(false)
+const isSearchPage = computed(() => route.name === 'Search')
+
+let searchTimeout = null
+
+const toggleSearch = async () => {
+  searchActive.value = !searchActive.value
+  if (searchActive.value) {
+    await nextTick()
+    searchInput.value?.focus()
+  } else {
+    clearSearch()
+  }
+}
+
+const handleSearch = () => {
+  clearTimeout(searchTimeout)
+  
+  if (searchQuery.value.length > 2) {
+    searchLoading.value = true
+    searchTimeout = setTimeout(async () => {
+      searchResults.value = await moviesStore.searchMovies(searchQuery.value)
+      searchLoading.value = false
+    }, 500) // Debounce de 500ms
+  } else {
+    searchResults.value = []
+  }
+}
+
+const performSearch = () => {
+  if (searchQuery.value.trim()) {
+    router.push({
+      name: 'Search',
+      query: { q: searchQuery.value }
+    })
+    searchActive.value = false
+    searchResults.value = []
+  }
+}
+
+const closeSearchDelayed = () => {
+  setTimeout(() => {
+    if (!searchQuery.value) {
+      searchActive.value = false
+    }
+    searchResults.value = []
+  }, 200)
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  searchResults.value = []
+}
+
+const selectSearchResult = (movie) => {
+  console.log('Selecionou:', movie.title)
+  clearSearch()
+  searchActive.value = false
+  // Navegar para home e abrir modal
+  if (route.name !== 'Home') {
+    router.push({ name: 'Home' })
+  }
+}
+
+// NOTIFICAÇÕES
+const showNotifications = ref(false)
+const unreadCount = ref(3)
+const notifications = ref([
+  { id: 1, message: 'Nova temporada de Stranger Things disponível!', time: '2h atrás', read: false },
+  { id: 2, message: 'Seu plano será renovado em 3 dias', time: '1 dia atrás', read: false },
+  { id: 3, message: 'Novo filme adicionado em Ação', time: '2 dias atrás', read: true }
+])
+
+const toggleNotifications = () => {
+  showNotifications.value = !showNotifications.value
+  if (showNotifications.value) {
+    setTimeout(() => {
+      notifications.value.forEach(n => n.read = true)
+      unreadCount.value = 0
+    }, 1000)
+  }
+}
+
+// PERFIL
 const isScrolled = ref(false)
 const showProfileMenu = ref(false)
-
-const currentProfileName = ref(
-  localStorage.getItem("metflix_active_profile") || "Perfil"
-)
-
+const currentProfileName = ref('Perfil')
 const currentProfileAvatar = ref('https://placehold.co/40x40/e50914/ffffff?text=P')
 const currentUserEmail = ref('usuario@metflix.com')
 
-// Scroll da navbar
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 0
 }
 
-// Abrir/Fechar menu
 const toggleProfileMenu = () => {
   showProfileMenu.value = !showProfileMenu.value
 }
 
-// Logout CORRIGIDO
 const handleLogout = () => {
-  authStore.logout()  // ✔ AGORA FUNCIONA
+  authStore.logout()
   localStorage.removeItem("metflix_active_profile")
   router.push({ name: 'Login' })
   showProfileMenu.value = false
 }
 
-// Gerenciar perfis
 const goToProfiles = () => {
   router.push({ name: 'Profiles' })
   showProfileMenu.value = false
@@ -136,19 +305,17 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  clearTimeout(searchTimeout)
 })
 </script>
 
-
 <style scoped>
-/* Variáveis de cor */
 :root {
   --metflix-red: #e50914;
   --metflix-dark: #141414;
   --metflix-gray: #b3b3b3;
 }
 
-/* Estilos da barra de navegação */
 .navbar {
   position: fixed;
   top: 0;
@@ -172,7 +339,6 @@ onUnmounted(() => {
   height: 100%;
 }
 
-/* Lado Esquerdo */
 .navbar-left {
   display: flex;
   align-items: center;
@@ -187,7 +353,7 @@ onUnmounted(() => {
 }
 
 .navbar-links {
-  display: none; /* Esconde links no mobile por padrão */
+  display: none;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -210,17 +376,16 @@ onUnmounted(() => {
   color: var(--metflix-gray);
 }
 
-/* Classe de link ativo definida no router/index.js */
-.navbar-link.navbar-link-active {
+.navbar-link.router-link-active {
   font-weight: 600;
   color: #fff;
 }
 
-/* Lado Direito */
 .navbar-right {
   display: flex;
   align-items: center;
   gap: 20px;
+  position: relative;
 }
 
 .navbar-icon {
@@ -235,7 +400,243 @@ onUnmounted(() => {
   color: var(--metflix-gray);
 }
 
-/* Perfil e Dropdown */
+/* BUSCA */
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid white;
+  border-radius: 4px;
+  padding: 0 15px;
+  gap: 10px;
+  min-width: 300px;
+}
+
+.search-icon-inside {
+  width: 18px;
+  height: 18px;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.search-input {
+  background: transparent;
+  border: none;
+  color: white;
+  outline: none;
+  padding: 8px 0;
+  font-size: 14px;
+  width: 100%;
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.search-clear:hover {
+  color: white;
+}
+
+.search-dropdown {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  width: 450px;
+  max-height: 500px;
+  overflow-y: auto;
+  z-index: 1001;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+}
+
+.search-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.search-dropdown-header span {
+  font-size: 14px;
+  color: #999;
+}
+
+.view-all-btn {
+  background: none;
+  border: none;
+  color: #e50914;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.view-all-btn:hover {
+  text-decoration: underline;
+}
+
+.search-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  color: #999;
+}
+
+.mini-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(229, 9, 20, 0.3);
+  border-top-color: #e50914;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.search-result-item {
+  display: flex;
+  gap: 15px;
+  padding: 12px 15px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.2s;
+}
+
+.search-result-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item img {
+  width: 70px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.search-result-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.search-result-info h4 {
+  font-size: 15px;
+  font-weight: 500;
+  color: white;
+  margin: 0;
+}
+
+.search-result-meta {
+  font-size: 13px;
+  color: #999;
+}
+
+/* NOTIFICAÇÕES */
+.notification-container {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #e50914;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.notifications-dropdown {
+  position: absolute;
+  top: 60px;
+  right: 80px;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  width: 350px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1001;
+}
+
+.notifications-header {
+  padding: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.notifications-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notifications-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notification-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notification-item.unread {
+  background: rgba(229, 9, 20, 0.1);
+}
+
+.notification-icon {
+  font-size: 24px;
+}
+
+.notification-content p {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.notification-time {
+  font-size: 12px;
+  color: #999;
+}
+
+/* PERFIL */
 .navbar-profile {
   position: relative;
   cursor: pointer;
@@ -255,11 +656,10 @@ onUnmounted(() => {
   border-radius: 4px;
 }
 
-/* Menu Dropdown */
 .navbar-profile-menu {
   position: absolute;
   top: 40px;
-  right: -10px; /* Ajuste a posição para alinhar com o ícone */
+  right: -10px;
   background-color: rgba(20, 20, 20, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
@@ -278,7 +678,6 @@ onUnmounted(() => {
   border-bottom: 10px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Estilos do cabeçalho do menu */
 .navbar-profile-header {
   display: flex;
   align-items: center;
@@ -314,7 +713,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-/* Estilos para detalhes da conta */
 .navbar-profile-details {
   padding: 12px 16px;
   background-color: rgba(255, 255, 255, 0.05);
@@ -342,7 +740,6 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-/* Estilos para opções do menu */
 .navbar-profile-options {
   list-style: none;
   padding: 0;
@@ -370,5 +767,34 @@ onUnmounted(() => {
 
 .navbar-profile-logout {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ANIMATIONS */
+.search-expand-enter-active,
+.search-expand-leave-active {
+  transition: all 0.3s ease;
+}
+
+.search-expand-enter-from {
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: right;
+}
+
+.search-expand-leave-to {
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: right;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

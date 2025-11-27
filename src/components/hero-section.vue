@@ -42,11 +42,7 @@ import { Play, Info } from 'lucide-vue-next'
 const props = defineProps({
   heroMovie: {
     type: Object,
-    default: () => ({
-      title: 'Stranger Things',
-      description: 'Quando um garoto desaparece, uma pequena cidade descobre um mistério envolvendo experimentos secretos, forças sobrenaturais aterrorizantes e uma garota muito estranha.',
-      backgroundImage: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&h=1080&q=80'
-    })
+    required: true
   }
 })
 
@@ -60,6 +56,7 @@ const showMoreInfo = () => {
   emit('show-more-info', props.heroMovie)
 }
 </script>
+
 
 <style scoped>
 .hero {
