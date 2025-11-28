@@ -1,30 +1,57 @@
-    import axios from 'axios';
+import axios from 'axios'
 
-    // A URL base da API é lida da variável de ambiente VITE_API_BASE_URL
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
 
-    if (!API_BASE_URL) {
-        console.error("VITE_API_BASE_URL não está definida. Verifique seu arquivo .env.");
+// Interceptor para adicionar token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('metflix_auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Interceptor para refresh token
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+
+      try {
+        const refreshToken = localStorage.getItem('metflix_refresh_token')
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/token/refresh/`,
+          { refresh: refreshToken }
+        )
+
+        const { access } = response.data
+        localStorage.setItem('metflix_auth_token', access)
+        originalRequest.headers.Authorization = `Bearer ${access}`
+
+        return api(originalRequest)
+      } catch (refreshError) {
+        localStorage.removeItem('metflix_auth_token')
+        localStorage.removeItem('metflix_refresh_token')
+        window.location.href = '/login'
+        return Promise.reject(refreshError)
+      }
     }
 
-    const api = axios.create({
-        baseURL:   "https://metflix-backend.onrender.com/api",
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    return Promise.reject(error)
+  }
+)
 
-    // Interceptor para adicionar o token de autenticação (Bearer Token)
-    // O token é obtido do localStorage, onde o Pinia Store irá armazená-lo.
-    api.interceptors.request.use(config => {
-        const token = localStorage.getItem('metflix_auth_token'); 
-        if (token) {
-            // O backend Django REST Framework espera o formato "Bearer <token>"
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    }, error => {
-        return Promise.reject(error);
-    });
-
-    export default api;
+export default api

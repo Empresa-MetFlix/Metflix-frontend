@@ -2,7 +2,12 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "types": [],
+    "typeRoots": ["./node_modules/@types"]
+  },
+  "typeAcquisition": {
+    "enable": false
   },
   "exclude": ["node_modules", "dist", "src/components/FilmesPage.vue", "src/components/MovieRow.vue", "src/components/SeriesPage.vue"]
 }
