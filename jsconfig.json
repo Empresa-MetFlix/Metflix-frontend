@@ -4,5 +4,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "src/components/FilmesPage.vue", "src/components/MovieRow.vue", "src/components/SeriesPage.vue"]
 }
