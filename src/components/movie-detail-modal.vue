@@ -20,20 +20,30 @@
               <p v-if="movie.tagline" class="modal-tagline">{{ movie.tagline }}</p>
               
               <div class="modal-actions">
-                <button class="modal-btn modal-btn-play" @click="playMovie">
-                  <Play :size="20" /> Assistir
+                <!-- Botão Trailer (principal) -->
+                <button 
+                  v-if="movie.trailer" 
+                  class="modal-btn modal-btn-play" 
+                  @click="watchTrailer"
+                >
+                  <Play :size="20" /> Assistir Trailer
                 </button>
+                
+                <!-- Mensagem se não houver trailer -->
+                <div v-else class="no-trailer-msg">
+                  <Info :size="18" />
+                  Trailer não disponível
+                </div>
+                
+                <!-- Botão Add/Remove da Lista -->
                 <button 
                   class="modal-btn modal-btn-icon" 
-                  @click="toggleFavorite"
+                  @click="handleToggleFavorite"
                   :class="{ active: isFavorited }"
-                  :title="isFavorited ? 'Remover da lista' : 'Adicionar à lista'"
+                  :title="isFavorited ? 'Remover da Minha Lista' : 'Adicionar à Minha Lista'"
                 >
                   <Check v-if="isFavorited" :size="20" />
                   <Plus v-else :size="20" />
-                </button>
-                <button class="modal-btn modal-btn-icon" title="Curtir">
-                  <ThumbsUp :size="20" />
                 </button>
               </div>
             </div>
@@ -62,15 +72,8 @@
               </div>
 
               <p class="modal-description">
-                {{ movie.description || 'Descrição não disponível para este título.' }}
+                {{ movie.description || movie.overview || 'Descrição não disponível para este título.' }}
               </p>
-
-              <!-- Trailer -->
-              <div v-if="movie.trailer" class="modal-trailer">
-                <button @click="watchTrailer" class="trailer-btn">
-                  <Video :size="18" /> Assistir Trailer
-                </button>
-              </div>
             </div>
 
             <div class="modal-info-side">
@@ -113,7 +116,11 @@
                 class="similar-item"
                 @click="openSimilar(similar)"
               >
-                <img :src="similar.image" :alt="similar.title" />
+                <img 
+                  :src="similar.image" 
+                  :alt="similar.title"
+                  @error="handleImageError"
+                />
                 <div class="similar-info">
                   <h4>{{ similar.title }}</h4>
                   <span>{{ similar.year }}</span>
@@ -129,8 +136,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { X, Play, Plus, Check, ThumbsUp, Clock, Video, Star } from 'lucide-vue-next'
-import { useFavoritesStore } from '@/composables/use-favorites.js'
+import { X, Play, Plus, Check, Clock, Star, Info } from 'lucide-vue-next'
+import { useFavorites } from '@/composables/use-favorites.js'  // ✅ CORRETO
 
 const props = defineProps({
   show: Boolean,
@@ -140,12 +147,13 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'play'])
+const emit = defineEmits(['close', 'open-similar'])
 
-const favoritesStore = useFavoritesStore()
+// ✅ USAR useFavorites (não useFavoritesStore)
+const { isFavorite, toggleFavorite } = useFavorites()
 
 const isFavorited = computed(() => {
-  return favoritesStore.isFavorite(props.movie.id)
+  return isFavorite(props.movie.id)
 })
 
 const displayGenres = computed(() => {
@@ -180,12 +188,12 @@ const closeModal = () => {
   emit('close')
 }
 
-const playMovie = () => {
-  emit('play', props.movie)
-}
-
-const toggleFavorite = () => {
-  favoritesStore.toggleFavorite(props.movie)
+const handleToggleFavorite = async () => {
+  try {
+    await toggleFavorite(props.movie)
+  } catch (error) {
+    console.error('Erro ao alternar favorito:', error)
+  }
 }
 
 const watchTrailer = () => {
@@ -195,15 +203,16 @@ const watchTrailer = () => {
 }
 
 const openSimilar = (similar) => {
-  emit('close')
-  // Reabrir com novo filme
-  setTimeout(() => {
-    emit('play', similar)
-  }, 300)
+  emit('open-similar', similar)
+}
+
+const handleImageError = (event) => {
+  event.target.src = 'https://via.placeholder.com/150x225/333/fff?text=Sem+Imagem'
 }
 </script>
 
 <style scoped>
+/* ✅ OVERLAY */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -214,8 +223,10 @@ const openSimilar = (similar) => {
   justify-content: center;
   padding: 20px;
   overflow-y: auto;
+  backdrop-filter: blur(5px);
 }
 
+/* ✅ CONTENT */
 .modal-content {
   background: #181818;
   border-radius: 8px;
@@ -224,8 +235,28 @@ const openSimilar = (similar) => {
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
 }
 
+/* ✅ SCROLL CUSTOMIZADO */
+.modal-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #2a2a2a;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 5px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+/* ✅ BOTÃO FECHAR */
 .modal-close {
   position: absolute;
   top: 15px;
@@ -241,13 +272,15 @@ const openSimilar = (similar) => {
   justify-content: center;
   cursor: pointer;
   color: white;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .modal-close:hover {
   background: rgba(0, 0, 0, 0.95);
+  transform: scale(1.1);
 }
 
+/* ✅ HERO */
 .modal-hero {
   position: relative;
   height: 480px;
@@ -258,12 +291,20 @@ const openSimilar = (similar) => {
   padding: 40px;
 }
 
+@media (max-width: 768px) {
+  .modal-hero {
+    height: 400px;
+    padding: 30px 20px;
+  }
+}
+
 .modal-hero-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     0deg,
     rgba(24, 24, 24, 1) 0%,
+    rgba(24, 24, 24, 0.8) 20%,
     rgba(24, 24, 24, 0) 50%
   );
 }
@@ -278,7 +319,14 @@ const openSimilar = (similar) => {
   font-size: 3rem;
   font-weight: bold;
   margin-bottom: 10px;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
+  line-height: 1.1;
+}
+
+@media (max-width: 768px) {
+  .modal-title {
+    font-size: 2rem;
+  }
 }
 
 .modal-tagline {
@@ -286,12 +334,21 @@ const openSimilar = (similar) => {
   color: #e5e5e5;
   font-style: italic;
   margin-bottom: 20px;
-  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.9);
 }
 
+@media (max-width: 768px) {
+  .modal-tagline {
+    font-size: 1rem;
+  }
+}
+
+/* ✅ BOTÕES DE AÇÃO */
 .modal-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .modal-btn {
@@ -304,16 +361,17 @@ const openSimilar = (similar) => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 16px;
 }
 
 .modal-btn-play {
   background: white;
   color: black;
-  font-size: 16px;
 }
 
 .modal-btn-play:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
+  transform: scale(1.05);
 }
 
 .modal-btn-icon {
@@ -321,14 +379,16 @@ const openSimilar = (similar) => {
   height: 44px;
   padding: 0;
   justify-content: center;
-  background: rgba(42, 42, 42, 0.6);
+  background: rgba(42, 42, 42, 0.7);
   border: 2px solid rgba(255, 255, 255, 0.5);
   color: white;
+  backdrop-filter: blur(10px);
 }
 
 .modal-btn-icon:hover {
   border-color: white;
-  background: rgba(42, 42, 42, 0.8);
+  background: rgba(42, 42, 42, 0.9);
+  transform: scale(1.1);
 }
 
 .modal-btn-icon.active {
@@ -337,6 +397,20 @@ const openSimilar = (similar) => {
   border-color: white;
 }
 
+/* ✅ MENSAGEM SEM TRAILER */
+.no-trailer-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: #999;
+  font-size: 14px;
+}
+
+/* ✅ INFO */
 .modal-info {
   padding: 40px;
   display: grid;
@@ -347,6 +421,7 @@ const openSimilar = (similar) => {
 @media (max-width: 768px) {
   .modal-info {
     grid-template-columns: 1fr;
+    padding: 30px 20px;
   }
 }
 
@@ -361,11 +436,13 @@ const openSimilar = (similar) => {
 
 .modal-match {
   color: #46d369;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 15px;
 }
 
 .modal-year {
   color: #e5e5e5;
+  font-weight: 500;
 }
 
 .modal-rating,
@@ -374,6 +451,7 @@ const openSimilar = (similar) => {
   border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 2px 6px;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .modal-duration {
@@ -386,32 +464,10 @@ const openSimilar = (similar) => {
 }
 
 .modal-description {
-  line-height: 1.6;
+  line-height: 1.7;
   color: #e5e5e5;
   margin-bottom: 20px;
-}
-
-.modal-trailer {
-  margin-top: 20px;
-}
-
-.trailer-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 14px;
-}
-
-.trailer-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: white;
+  font-size: 15px;
 }
 
 .modal-info-side {
@@ -430,6 +486,7 @@ const openSimilar = (similar) => {
 .modal-label {
   color: #777;
   font-weight: 600;
+  font-size: 13px;
 }
 
 .modal-value {
@@ -437,43 +494,76 @@ const openSimilar = (similar) => {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-size: 14px;
 }
 
+/* ✅ SIMILARES */
 .modal-similar {
   padding: 0 40px 40px;
+}
+
+@media (max-width: 768px) {
+  .modal-similar {
+    padding: 0 20px 30px;
+  }
 }
 
 .modal-similar h3 {
   font-size: 1.5rem;
   margin-bottom: 20px;
+  font-weight: 700;
 }
 
 .similar-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 20px;
+  gap: 15px;
+}
+
+@media (max-width: 768px) {
+  .similar-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
 }
 
 .similar-item {
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #2a2a2a;
 }
 
 .similar-item:hover {
   transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
 }
 
 .similar-item img {
   width: 100%;
   height: 225px;
   object-fit: cover;
-  border-radius: 4px;
-  margin-bottom: 8px;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .similar-item img {
+    height: 180px;
+  }
+}
+
+.similar-info {
+  padding: 8px;
 }
 
 .similar-info h4 {
   font-size: 14px;
   margin-bottom: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .similar-info span {
@@ -481,7 +571,7 @@ const openSimilar = (similar) => {
   color: #999;
 }
 
-/* Transitions */
+/* ✅ TRANSITIONS */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.3s ease;

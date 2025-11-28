@@ -226,195 +226,244 @@ const profileForm = reactive({
   autoplay: true,
 });
 
-// ✅ Pegar user_id do token JWT
-const getUserId = () => {
-  const token = localStorage.getItem("metflix_auth_token");
-  if (!token) return null;
-
+// ✅ BUSCAR PERFIS DO BACKEND
+const loadProfilesFromBackend = async () => {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.user_id || null;
-  } catch (e) {
-    console.error("Erro ao decodificar token:", e);
-    return null;
-  }
-};
-
-const getStorageKey = () => {
-  const userId = getUserId();
-  return userId ? `metflix_profiles_user_${userId}` : "metflix_profiles";
-};
-
-const loadProfiles = () => {
-  const token = localStorage.getItem("metflix_auth_token");
-  if (!token) {
-    profiles.value = [];
-    return;
-  }
-
-  const storageKey = getStorageKey();
-  const stored = localStorage.getItem(storageKey);
-
-  if (stored) {
-    try {
-      profiles.value = JSON.parse(stored);
-    } catch {
-      profiles.value = [];
+    const token = localStorage.getItem('metflix_auth_token')
+    if (!token) {
+      console.error('❌ Token não encontrado')
+      profiles.value = []
+      return
     }
-  } else {
-    profiles.value = [];
+    
+    const response = await fetch('http://localhost:8000/api/profiles/', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('Erro ao buscar perfis')
+    }
+    
+    const backendProfiles = await response.json()
+    console.log('📋 Perfis carregados do backend:', backendProfiles)
+    
+    profiles.value = backendProfiles
+    
+    // Se não tem perfis, forçar criação do primeiro
+    if (profiles.value.length === 0) {
+      console.log('⚠️ Nenhum perfil encontrado, mostrando criação')
+      creatingProfile.value = true
+      profileForm.name = ""
+      profileForm.avatar = availableAvatars.value[0].url
+      profileForm.isKids = false
+      profileForm.autoplay = true
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar perfis do backend:', error)
+    profiles.value = []
   }
-
-  // ✅ Se não tem perfis, forçar criação do primeiro
-  if (profiles.value.length === 0) {
-    creatingProfile.value = true;
-    profileForm.name = "";
-    profileForm.avatar = availableAvatars.value[0].url;
-    profileForm.isKids = false;
-    profileForm.autoplay = true;
-  }
-};
-
-const saveProfiles = () => {
-  const storageKey = getStorageKey();
-  localStorage.setItem(storageKey, JSON.stringify(profiles.value));
-};
-
-const saveActiveProfile = (profile) => {
-  const userId = getUserId();
-  const storageKey = userId
-    ? `metflix_active_profile_user_${userId}`
-    : "metflix_active_profile";
-  localStorage.setItem(storageKey, JSON.stringify(profile));
-};
+}
 
 // ✅ CLICAR NO PERFIL JÁ SELECIONA E ENTRA (Netflix Style)
 const selectAndConfirm = (profile) => {
-  selectedProfile.value = profile;
-  saveActiveProfile(profile);
-  emit("profile-confirmed", profile);
-};
+  console.log('🎭 Perfil selecionado:', profile.name)
+  selectedProfile.value = profile
+  localStorage.setItem('metflix_active_profile', JSON.stringify(profile))
+  emit("profile-confirmed", profile)
+}
 
 const editProfile = (profile) => {
   console.log('🎬 EDITANDO PERFIL:', profile.name)
   
-  // ✅ DESATIVA O MODO DE GERENCIAMENTO PRIMEIRO!
   managingProfiles.value = false
-  
   editingProfile.value = profile
   profileForm.name = profile.name
   profileForm.avatar = profile.avatar
-  profileForm.isKids = profile.isKids
-  profileForm.autoplay = profile.autoplay
+  profileForm.isKids = profile.is_kids || false
+  profileForm.autoplay = profile.autoplay !== undefined ? profile.autoplay : true
 }
-
 
 const createProfile = () => {
-  creatingProfile.value = true;
-  profileForm.name = "";
-  profileForm.avatar = availableAvatars.value[0].url;
-  profileForm.isKids = false;
-  profileForm.autoplay = true;
-};
-
-const saveProfile = () => {
-  if (!profileForm.name.trim()) return
-
-  if (editingProfile.value) {
-    // EDITAR PERFIL
-    const index = profiles.value.findIndex(
-      (p) => p.id === editingProfile.value.id
-    )
-    profiles.value[index] = {
-      ...profiles.value[index],
-      name: profileForm.name,
-      avatar: profileForm.avatar,
-      isKids: profileForm.isKids,
-      autoplay: profileForm.autoplay,
-    }
-
-    if (selectedProfile.value?.id === editingProfile.value.id) {
-      selectedProfile.value = profiles.value[index]
-      saveActiveProfile(selectedProfile.value)
-    }
-
-    // ✅ Após salvar edição, volta para modo de gerenciamento
-    cancelEdit()
-    managingProfiles.value = true // ← ADICIONE ESTA LINHA
-    
-  } else {
-    // CRIAR NOVO PERFIL
-    const newProfile = {
-      id: Date.now(),
-      name: profileForm.name,
-      avatar: profileForm.avatar,
-      isKids: profileForm.isKids,
-      autoplay: profileForm.autoplay,
-    }
-
-    profiles.value.push(newProfile)
-
-    // Se é o primeiro perfil, seleciona e vai pra home
-    if (profiles.value.length === 1) {
-      selectedProfile.value = newProfile
-      saveActiveProfile(newProfile)
-      saveProfiles()
-      cancelEdit()
-      emit("profile-confirmed", selectedProfile.value)
-      return
-    }
-
-    // Se não é o primeiro, volta para gerenciamento
-    cancelEdit()
-    managingProfiles.value = true // ← ADICIONE ESTA LINHA
-  }
-
-  saveProfiles()
+  creatingProfile.value = true
+  managingProfiles.value = false // ✅ Sair do modo gerenciamento
+  profileForm.name = ""
+  profileForm.avatar = availableAvatars.value[0].url
+  profileForm.isKids = false
+  profileForm.autoplay = true
 }
 
-const deleteProfile = (id) => {
-  if (profiles.value.length === 1) {
-    return alert("Você precisa ter pelo menos um perfil.");
-  }
+// ✅ SALVAR PERFIL NO BACKEND
+const saveProfile = async () => {
+  if (!profileForm.name.trim()) return
 
-  const target = profiles.value.find((p) => p.id === id);
-  if (!confirm(`Tem certeza que deseja excluir o perfil "${target.name}"?`)) {
-    return;
-  }
-
-  profiles.value = profiles.value.filter((p) => p.id !== id);
-  saveProfiles();
-
-  if (selectedProfile.value?.id === id) {
-    selectedProfile.value = profiles.value[0] || null;
-    if (selectedProfile.value) {
-      saveActiveProfile(selectedProfile.value);
+  try {
+    const token = localStorage.getItem('metflix_auth_token')
+    
+    if (editingProfile.value) {
+      // EDITAR PERFIL EXISTENTE
+      const response = await fetch(`http://localhost:8000/api/profiles/${editingProfile.value.id}/`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: profileForm.name,
+          avatar: profileForm.avatar,
+          is_kids: profileForm.isKids,
+          autoplay: profileForm.autoplay
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar perfil')
+      }
+      
+      const updatedProfile = await response.json()
+      console.log('✅ Perfil atualizado:', updatedProfile)
+      
+      // Atualizar na lista local
+      const index = profiles.value.findIndex(p => p.id === editingProfile.value.id)
+      profiles.value[index] = updatedProfile
+      
+      // Se era o perfil ativo, atualizar localStorage
+      const activeProfile = JSON.parse(localStorage.getItem('metflix_active_profile') || '{}')
+      if (activeProfile.id === updatedProfile.id) {
+        localStorage.setItem('metflix_active_profile', JSON.stringify(updatedProfile))
+      }
+      
+      cancelEdit()
+      managingProfiles.value = true
+      
+    } else {
+      // CRIAR NOVO PERFIL
+      const response = await fetch('http://localhost:8000/api/profiles/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: profileForm.name,
+          avatar: profileForm.avatar,
+          is_kids: profileForm.isKids,
+          autoplay: profileForm.autoplay
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Erro ao criar perfil')
+      }
+      
+      const newProfile = await response.json()
+      console.log('✅ Perfil criado:', newProfile)
+      
+      profiles.value.push(newProfile)
+      
+      // Se é o primeiro perfil, seleciona e vai pra home
+      if (profiles.value.length === 1) {
+        selectedProfile.value = newProfile
+        localStorage.setItem('metflix_active_profile', JSON.stringify(newProfile))
+        cancelEdit()
+        emit("profile-confirmed", selectedProfile.value)
+        return
+      }
+      
+      // Se não é o primeiro, volta para gerenciamento
+      cancelEdit()
+      managingProfiles.value = true
     }
+  } catch (error) {
+    console.error('❌ Erro ao salvar perfil:', error)
+    alert('Erro ao salvar perfil. Tente novamente.')
+  }
+}
+
+// ✅ DELETAR PERFIL DO BACKEND
+const deleteProfile = async (id) => {
+  if (profiles.value.length === 1) {
+    return alert("Você precisa ter pelo menos um perfil.")
   }
 
-  // ✅ Após excluir, volta para modo de gerenciamento
-  cancelEdit();
-};
+  const target = profiles.value.find((p) => p.id === id)
+  if (!confirm(`Tem certeza que deseja excluir o perfil "${target.name}"?`)) {
+    return
+  }
+
+  try {
+    const token = localStorage.getItem('metflix_auth_token')
+    const response = await fetch(`http://localhost:8000/api/profiles/${id}/`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('Erro ao deletar perfil')
+    }
+    
+    console.log('✅ Perfil deletado')
+    
+    profiles.value = profiles.value.filter((p) => p.id !== id)
+    
+    // Se deletou o perfil ativo, selecionar outro
+    const activeProfile = JSON.parse(localStorage.getItem('metflix_active_profile') || '{}')
+    if (activeProfile.id === id) {
+      if (profiles.value.length > 0) {
+        selectedProfile.value = profiles.value[0]
+        localStorage.setItem('metflix_active_profile', JSON.stringify(selectedProfile.value))
+      } else {
+        localStorage.removeItem('metflix_active_profile')
+      }
+    }
+    
+    cancelEdit()
+    managingProfiles.value = true
+    
+  } catch (error) {
+    console.error('❌ Erro ao deletar perfil:', error)
+    alert('Erro ao excluir perfil. Tente novamente.')
+  }
+}
 
 const cancelEdit = () => {
-  if (editingProfile.value) {
-    // Se estava editando, volta pro modo gerenciar
-    managingProfiles.value = true
-  }
+  editingProfile.value = null
+  creatingProfile.value = false
   
+  // ✅ Não volta automaticamente pro gerenciamento se não estava lá
+}
+
+const manageProfiles = () => {
+  managingProfiles.value = true
   editingProfile.value = null
   creatingProfile.value = false
 }
 
+// ✅ ATIVAR MODO GERENCIAMENTO (CHAMADO PELA NAVBAR)
+const activateManageMode = () => {
+  console.log('🔄 Ativando modo gerenciamento')
+  managingProfiles.value = true
+  editingProfile.value = null
+  creatingProfile.value = false
+}
 
-const manageProfiles = () => {
-  managingProfiles.value = true;
-};
-
-// ✅ CORRIGIDO: Botão "Concluído" no gerenciamento volta para seleção
+// ✅ SAIR DO MODO GERENCIAR - Volta para home com perfil ativo
 const exitManageMode = () => {
-  managingProfiles.value = false;
-};
+  managingProfiles.value = false
+  editingProfile.value = null
+  creatingProfile.value = false
+  
+  // ✅ Pegar perfil ativo e confirmar
+  const activeProfile = localStorage.getItem('metflix_active_profile')
+  if (activeProfile) {
+    const profile = JSON.parse(activeProfile)
+    console.log('📤 Saindo do gerenciamento, voltando para home com perfil:', profile.name)
+    emit("profile-confirmed", profile)
+  }
+}
 
 const availableAvatars = ref([
   { id: 1, name: 'Avatar 1', url: 'https://robohash.org/avatar1?set=set5&size=200x200' },
@@ -437,19 +486,23 @@ const availableAvatars = ref([
   { id: 18, name: 'Avatar 18', url: 'https://robohash.org/avatar18?set=set5&size=200x200' },
   { id: 19, name: 'Avatar 19', url: 'https://robohash.org/avatar19?set=set5&size=200x200' },
   { id: 20, name: 'Avatar 20', url: 'https://robohash.org/avatar20?set=set5&size=200x200' }
-]);
-
+])
 
 const selectAvatar = (url) => {
-  profileForm.avatar = url;
-  showAvatarSelector.value = false;
-};
+  profileForm.avatar = url
+  showAvatarSelector.value = false
+}
 
-onMounted(() => {
-  loadProfiles();
-});
+onMounted(async () => {
+  console.log('🎭 ProfileManagement montado')
+  await loadProfilesFromBackend()
+})
+
+// ✅ EXPOR FUNÇÃO PARA O PAI CHAMAR
+defineExpose({
+  activateManageMode
+})
 </script>
-
 <style scoped>
 .profile-management {
   min-height: 100vh;

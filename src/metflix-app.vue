@@ -24,8 +24,9 @@
 
     <ProfileManagement
       v-else-if="isAuthenticated && !activeProfile"
+      ref="profileManagementRef"
       @profile-selected="handleProfileSelected"
-      @profile-confirmed="handleProfileConclude"
+      @profile-confirmed="handleProfileConfirmed"
       @back="activeProfile = null"
     />
 
@@ -38,7 +39,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from "vue"
-import { useAuth } from "./composables/use-auth.js"
+import { useAuth } from "./stores/use-auth.js"
 import { useRouter } from "vue-router"
 import Navbar from "./components/navbar.vue"
 import LoginPage from "./components/login-page.vue"
@@ -48,72 +49,74 @@ const authStore = useAuth()
 const router = useRouter()
 
 const isAuthenticated = ref(false)
-
 const activeProfile = ref(null)
+const profileManagementRef = ref(null)
 
 const checkAuth = () => {
   const token = localStorage.getItem('metflix_auth_token')
   isAuthenticated.value = !!token
-  console.log(' checkAuth:', isAuthenticated.value)
+  console.log('🔐 checkAuth:', isAuthenticated.value)
 }
 
 onMounted(() => {
-  console.log(' Metflix-app montado')
+  console.log('📱 Metflix-app montado')
   checkAuth()
   
+  // ✅ VERIFICAR SE JÁ TEM PERFIL ATIVO SALVO
   const saved = localStorage.getItem("metflix_active_profile")
-  if (saved) {
+  if (saved && isAuthenticated.value) {
     try {
       activeProfile.value = JSON.parse(saved)
-      console.log(' Perfil carregado:', activeProfile.value)
+      console.log('✅ Perfil carregado do localStorage:', activeProfile.value)
     } catch (e) {
-      console.error(' Erro ao carregar perfil:', e)
+      console.error('❌ Erro ao carregar perfil:', e)
       localStorage.removeItem("metflix_active_profile")
+      activeProfile.value = null
     }
   }
 })
 
+// ✅ APÓS LOGIN: NÃO SELECIONA PERFIL AUTOMATICAMENTE
 const handleLoginSuccess = async () => {
-  console.log(' Login success no metflix-app')
+  console.log('✅ Login success no metflix-app')
   
   await nextTick()
   checkAuth()
   
-  const saved = localStorage.getItem("metflix_active_profile")
-  console.log(' Perfil salvo:', saved)
+  // ✅ LIMPAR PERFIL ATIVO PARA MOSTRAR TELA DE SELEÇÃO
+  localStorage.removeItem('metflix_active_profile')
+  activeProfile.value = null
   
-  if (!saved) {
-    console.log(' Indo para seleção de perfis')
-    activeProfile.value = null
-  } else {
-    try {
-      activeProfile.value = JSON.parse(saved)
-      console.log(' Perfil carregado, indo para home:', activeProfile.value)
-      await nextTick()
-      router.push('/')
-    } catch (e) {
-      console.error(' Erro ao carregar perfil:', e)
-      activeProfile.value = null
-    }
-  }
+  console.log('🎭 Mostrando tela de seleção de perfis')
 }
 
 const handleProfileSelected = (profile) => {
-  console.log("Profile selected:", profile.name)
+  console.log("📌 Profile selected:", profile.name)
 }
 
-const handleProfileConclude = async (profile) => {
-  console.log(" Perfil concluído:", profile)
+// ✅ QUANDO O PERFIL É CONFIRMADO (SELECIONADO OU CRIADO)
+const handleProfileConfirmed = async (profile) => {
+  console.log("✅ Perfil confirmado:", profile.name)
   
-  localStorage.setItem("metflix_active_profile", JSON.stringify(profile))
+  // Salvar no localStorage
+  localStorage.setItem('metflix_active_profile', JSON.stringify(profile))
   activeProfile.value = profile
   
   await nextTick()
   router.push('/')
 }
 
+// ✅ ABRIR GERENCIAMENTO DE PERFIS PELA NAVBAR
 const openProfileManagement = () => {
+  console.log('🔄 Abrindo gerenciamento de perfis')
   activeProfile.value = null
+  
+  // ✅ Ativar modo gerenciamento no ProfileManagement
+  nextTick(() => {
+    if (profileManagementRef.value) {
+      profileManagementRef.value.activateManageMode()
+    }
+  })
 }
 
 const handleLogout = () => {

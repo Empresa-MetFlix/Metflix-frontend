@@ -56,13 +56,11 @@
               </button>
             </div>
             
-            <!-- Loading State -->
             <div v-if="searchLoading" class="search-loading">
               <div class="mini-spinner"></div>
               Buscando...
             </div>
             
-            <!-- Results -->
             <div 
               v-else
               v-for="result in searchResults.slice(0, 5)" 
@@ -91,20 +89,64 @@
           <div v-if="showNotifications" class="notifications-dropdown">
             <div class="notifications-header">
               <h3>Notificações</h3>
+              <div class="notifications-actions">
+                <button 
+                  v-if="notifications.length > 0"
+                  @click="handleMarkAllAsRead" 
+                  class="mark-all-btn"
+                  title="Marcar todas como lidas"
+                >
+                  ✓ Marcar todas
+                </button>
+                <button 
+                  v-if="notifications.length > 0"
+                  @click="handleClearAll" 
+                  class="clear-all-btn"
+                  title="Limpar todas"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
-            <div class="notifications-list">
+            
+            <!-- Loading -->
+            <div v-if="notificationsLoading" class="notifications-loading">
+              <div class="mini-spinner"></div>
+              Carregando...
+            </div>
+            
+            <!-- Lista de Notificações -->
+            <div v-else-if="notifications.length > 0" class="notifications-list">
               <div 
                 v-for="notif in notifications" 
                 :key="notif.id"
                 class="notification-item"
                 :class="{ unread: !notif.read }"
+                @click="handleNotificationClick(notif)"
               >
-                <div class="notification-icon">🔔</div>
-                <div class="notification-content">
-                  <p>{{ notif.message }}</p>
-                  <span class="notification-time">{{ notif.time }}</span>
+                <div class="notification-icon">
+                  {{ getNotificationIcon(notif.notification_type) }}
                 </div>
+                <div class="notification-content">
+                  <h4 class="notification-title">{{ notif.title }}</h4>
+                  <p class="notification-message">{{ notif.message }}</p>
+                  <span class="notification-time">{{ formatTimeAgo(notif.created_at) }}</span>
+                </div>
+                <button 
+                  v-if="!notif.read"
+                  @click.stop="markAsRead(notif.id)"
+                  class="mark-read-btn"
+                  title="Marcar como lida"
+                >
+                  ✓
+                </button>
               </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div v-else class="notifications-empty">
+              <div class="empty-icon">🔔</div>
+              <p>Sem notificações</p>
             </div>
           </div>
         </Transition>
@@ -112,38 +154,27 @@
         <!-- PERFIL -->
         <div class="navbar-profile" @click="toggleProfileMenu">
           <img 
-            v-if="currentProfileAvatar" 
-            :src="currentProfileAvatar" 
-            :alt="currentProfileName" 
+            v-if="currentProfile?.avatar" 
+            :src="currentProfile.avatar" 
+            :alt="currentProfile.name" 
             class="navbar-profile-img"
           />
-          <div v-else class="navbar-profile-placeholder"></div>
+          <div v-else class="navbar-profile-placeholder">P</div>
           
           <div v-if="showProfileMenu" class="navbar-profile-menu">
             <div class="navbar-profile-arrow"></div>
             
             <div class="navbar-profile-header">
               <img 
-                v-if="currentProfileAvatar" 
-                :src="currentProfileAvatar" 
-                :alt="currentProfileName" 
+                v-if="currentProfile?.avatar" 
+                :src="currentProfile.avatar" 
+                :alt="currentProfile.name" 
                 class="navbar-profile-img-lg"
               />
-              <div v-else class="navbar-profile-placeholder-lg"></div>
+              <div v-else class="navbar-profile-placeholder-lg">P</div>
               <div class="navbar-profile-details-text">
-                <span class="navbar-profile-name-lg">{{ currentProfileName }}</span>
-                <span class="navbar-profile-email-lg">{{ currentUserEmail }}</span>
-              </div>
-            </div>
-
-            <div class="navbar-profile-details">
-              <div class="navbar-profile-detail">
-                <span class="navbar-profile-detail-label">Plano:</span>
-                <span class="navbar-profile-detail-value">Premium Ultra HD</span>
-              </div>
-              <div class="navbar-profile-detail">
-                <span class="navbar-profile-detail-label">Status:</span>
-                <span class="navbar-profile-detail-value">Ativo</span>
+                <span class="navbar-profile-name-lg">{{ currentProfile?.name || 'Perfil' }}</span>
+                <span class="navbar-profile-email-lg">{{ currentUser?.email || '' }}</span>
               </div>
             </div>
             
@@ -152,11 +183,7 @@
                 <User class="navbar-option-icon" />
                 Gerenciar Perfis
               </li>
-              <li class="navbar-profile-option">
-                <Settings class="navbar-option-icon" />
-                Conta
-              </li>
-              <li class="navbar-profile-option">
+              <li class="navbar-profile-option" @click="goToHelp">
                 <HelpCircle class="navbar-option-icon" />
                 Ajuda
               </li>
@@ -175,14 +202,45 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Search, Bell, User, Settings, HelpCircle, LogOut } from 'lucide-vue-next'
-import { useAuth } from '../composables/use-auth.js'
+import { Search, Bell, User, HelpCircle, LogOut } from 'lucide-vue-next'
+import { useAuth } from '../stores/use-auth.js'
 import { useMovies } from '../composables/use-movies.js'
+import { useNotifications } from '../composables/use-notifications.js'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuth()
 const moviesStore = useMovies()
+
+// ✅ NOTIFICAÇÕES (REAL)
+const {
+  notifications,
+  loading: notificationsLoading,
+  unreadCount,
+  loadNotifications,
+  markAsRead,
+  markAllAsRead,
+  clearAll,
+  startPolling,
+  stopPolling,
+  formatTimeAgo,
+} = useNotifications()
+
+// PERFIL E USUÁRIO
+const currentProfile = computed(() => {
+  const profileData = localStorage.getItem('metflix_active_profile')
+  if (profileData) {
+    try {
+      return JSON.parse(profileData)
+    } catch (e) {
+      console.error('Erro ao carregar perfil:', e)
+      return null
+    }
+  }
+  return null
+})
+
+const currentUser = computed(() => authStore.user)
 
 // BUSCA
 const searchActive = ref(false)
@@ -212,7 +270,7 @@ const handleSearch = () => {
     searchTimeout = setTimeout(async () => {
       searchResults.value = await moviesStore.searchMovies(searchQuery.value)
       searchLoading.value = false
-    }, 500) // Debounce de 500ms
+    }, 500)
   } else {
     searchResults.value = []
   }
@@ -247,7 +305,6 @@ const selectSearchResult = (movie) => {
   console.log('Selecionou:', movie.title)
   clearSearch()
   searchActive.value = false
-  // Navegar para home e abrir modal
   if (route.name !== 'Home') {
     router.push({ name: 'Home' })
   }
@@ -255,29 +312,52 @@ const selectSearchResult = (movie) => {
 
 // NOTIFICAÇÕES
 const showNotifications = ref(false)
-const unreadCount = ref(3)
-const notifications = ref([
-  { id: 1, message: 'Nova temporada de Stranger Things disponível!', time: '2h atrás', read: false },
-  { id: 2, message: 'Seu plano será renovado em 3 dias', time: '1 dia atrás', read: false },
-  { id: 3, message: 'Novo filme adicionado em Ação', time: '2 dias atrás', read: true }
-])
 
-const toggleNotifications = () => {
+const toggleNotifications = async () => {
   showNotifications.value = !showNotifications.value
-  if (showNotifications.value) {
-    setTimeout(() => {
-      notifications.value.forEach(n => n.read = true)
-      unreadCount.value = 0
-    }, 1000)
+  
+  if (showNotifications.value && notifications.value.length === 0) {
+    await loadNotifications()
   }
+}
+
+const handleNotificationClick = async (notification) => {
+  // Marcar como lida
+  if (!notification.read) {
+    await markAsRead(notification.id)
+  }
+  
+  // Navegar se tiver link
+  if (notification.link) {
+    router.push(notification.link)
+    showNotifications.value = false
+  }
+}
+
+const handleMarkAllAsRead = async () => {
+  await markAllAsRead()
+}
+
+const handleClearAll = async () => {
+  if (confirm('Tem certeza que deseja limpar todas as notificações?')) {
+    await clearAll()
+  }
+}
+
+const getNotificationIcon = (type) => {
+  const icons = {
+    'new_content': '🎬',
+    'favorite_added': '⭐',
+    'recommendation': '💡',
+    'system': '🔔',
+    'achievement': '🏆',
+  }
+  return icons[type] || '🔔'
 }
 
 // PERFIL
 const isScrolled = ref(false)
 const showProfileMenu = ref(false)
-const currentProfileName = ref('Perfil')
-const currentProfileAvatar = ref('https://placehold.co/40x40/e50914/ffffff?text=P')
-const currentUserEmail = ref('usuario@metflix.com')
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 0
@@ -287,25 +367,49 @@ const toggleProfileMenu = () => {
   showProfileMenu.value = !showProfileMenu.value
 }
 
-const handleLogout = () => {
-  authStore.logout()
-  localStorage.removeItem("metflix_active_profile")
-  router.push({ name: 'Login' })
+const goToProfiles = () => {
   showProfileMenu.value = false
+  router.push({ name: 'ProfileManagement' })
 }
 
-const goToProfiles = () => {
-  router.push({ name: 'Profiles' })
+const goToHelp = () => {
   showProfileMenu.value = false
+  router.push({ name: 'Help' })
+}
+
+const handleLogout = async () => {
+  console.log('🚪 Iniciando logout...')
+  
+  showProfileMenu.value = false
+  
+  // Parar polling de notificações
+  stopPolling()
+  
+  // Limpar tudo
+  localStorage.clear()
+  sessionStorage.clear()
+  
+  authStore.user = null
+  authStore.isAuthenticated = false
+  
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  window.location.href = '/'
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
+  
+  // ✅ Iniciar polling de notificações a cada 30 segundos
+  if (authStore.isAuthenticated) {
+    startPolling(30000)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
   clearTimeout(searchTimeout)
+  stopPolling()
 })
 </script>
 
@@ -323,13 +427,16 @@ onUnmounted(() => {
   width: 100%;
   z-index: 1000;
   padding: 0 4%;
-  height: 68px;
-  background-color: transparent;
+  height: 70px;
+  /* ✅ GRADIENTE ESCURO NO TOPO (NETFLIX STYLE) */
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 10%, transparent);
   transition: background-color 0.4s ease;
 }
 
+/* ✅ AO ROLAR, FICA TOTALMENTE ESCURO */
 .navbar.scrolled {
-  background-color: var(--metflix-dark);
+  background-color: rgb(20, 20, 20); /* ✅ PRETO SÓLIDO */
+  background-image: none; /* ✅ REMOVE GRADIENTE */
 }
 
 .navbar-container {
@@ -342,14 +449,15 @@ onUnmounted(() => {
 .navbar-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 25px;
 }
 
 .navbar-logo {
   color: var(--metflix-red);
-  font-size: 1.8rem;
-  font-weight: 700;
-  letter-spacing: -1px;
+  font-size: 1.73rem;
+  font-weight: 900;
+  letter-spacing: 0.1rem;
+  text-decoration: none;
 }
 
 .navbar-links {
@@ -357,7 +465,7 @@ onUnmounted(() => {
   list-style: none;
   margin: 0;
   padding: 0;
-  gap: 18px;
+  gap: 20px;
 }
 
 @media (min-width: 768px) {
@@ -368,23 +476,25 @@ onUnmounted(() => {
 
 .navbar-link {
   color: #e5e5e5;
-  font-size: 0.9rem;
-  transition: color 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.4s;
+  text-decoration: none;
 }
 
 .navbar-link:hover {
-  color: var(--metflix-gray);
+  color: #b3b3b3;
 }
 
 .navbar-link.router-link-active {
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
 }
 
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
   position: relative;
 }
 
@@ -410,18 +520,19 @@ onUnmounted(() => {
 .search-input-wrapper {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid white;
-  border-radius: 4px;
-  padding: 0 15px;
-  gap: 10px;
-  min-width: 300px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 2px;
+  padding: 0 10px;
+  gap: 8px;
+  min-width: 270px;
+  height: 34px;
 }
 
 .search-icon-inside {
-  width: 18px;
-  height: 18px;
-  color: #999;
+  width: 16px;
+  height: 16px;
+  color: #fff;
   flex-shrink: 0;
 }
 
@@ -430,51 +541,56 @@ onUnmounted(() => {
   border: none;
   color: white;
   outline: none;
-  padding: 8px 0;
+  padding: 6px 0;
   font-size: 14px;
   width: 100%;
+}
+
+.search-input::placeholder {
+  color: #808080;
 }
 
 .search-clear {
   background: none;
   border: none;
-  color: #999;
+  color: #fff;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   padding: 0;
   line-height: 1;
   transition: color 0.2s;
 }
 
 .search-clear:hover {
-  color: white;
+  color: #b3b3b3;
 }
 
 .search-dropdown {
   position: absolute;
-  top: 60px;
+  top: 50px;
   right: 0;
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.98);
+  border: 1px solid rgba(229, 9, 20, 0.8);
+  border-radius: 0;
   width: 450px;
   max-height: 500px;
   overflow-y: auto;
   z-index: 1001;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.9);
 }
 
 .search-dropdown-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .search-dropdown-header span {
   font-size: 14px;
-  color: #999;
+  color: #b3b3b3;
+  font-weight: 600;
 }
 
 .view-all-btn {
@@ -482,8 +598,10 @@ onUnmounted(() => {
   border: none;
   color: #e50914;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .view-all-btn:hover {
@@ -495,7 +613,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 20px;
+  padding: 30px 20px;
   color: #999;
 }
 
@@ -514,11 +632,11 @@ onUnmounted(() => {
 
 .search-result-item {
   display: flex;
-  gap: 15px;
-  padding: 12px 15px;
+  gap: 12px;
+  padding: 10px 20px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.3s;
 }
 
 .search-result-item:hover {
@@ -530,10 +648,10 @@ onUnmounted(() => {
 }
 
 .search-result-item img {
-  width: 70px;
-  height: 100px;
+  width: 60px;
+  height: 90px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 
@@ -546,14 +664,14 @@ onUnmounted(() => {
 
 .search-result-info h4 {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   color: white;
   margin: 0;
 }
 
 .search-result-meta {
   font-size: 13px;
-  color: #999;
+  color: #808080;
 }
 
 /* NOTIFICAÇÕES */
@@ -563,41 +681,44 @@ onUnmounted(() => {
 
 .notification-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
+  top: -6px;
+  right: -6px;
   background: #e50914;
   color: white;
   border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  font-size: 11px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-weight: 700;
+  border: 2px solid #141414;
 }
 
 .notifications-dropdown {
   position: absolute;
-  top: 60px;
+  top: 50px;
   right: 80px;
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 4px;
-  width: 350px;
+  width: 400px;
   max-height: 400px;
   overflow-y: auto;
   z-index: 1001;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.9);
 }
 
 .notifications-header {
-  padding: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .notifications-header h3 {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  margin: 0;
 }
 
 .notifications-list {
@@ -608,8 +729,8 @@ onUnmounted(() => {
 .notification-item {
   display: flex;
   gap: 12px;
-  padding: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -619,27 +740,36 @@ onUnmounted(() => {
 }
 
 .notification-item.unread {
-  background: rgba(229, 9, 20, 0.1);
+  background: rgba(229, 9, 20, 0.08);
 }
 
 .notification-icon {
   font-size: 24px;
+  flex-shrink: 0;
+}
+
+.notification-content {
+  flex: 1;
 }
 
 .notification-content p {
   font-size: 14px;
-  margin-bottom: 4px;
+  margin: 0 0 4px 0;
+  line-height: 1.4;
 }
 
 .notification-time {
   font-size: 12px;
-  color: #999;
+  color: #808080;
 }
 
 /* PERFIL */
 .navbar-profile {
   position: relative;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .navbar-profile-img {
@@ -652,92 +782,88 @@ onUnmounted(() => {
 .navbar-profile-placeholder {
   width: 32px;
   height: 32px;
-  background-color: #555;
+  background-color: #808080;
   border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
 }
 
 .navbar-profile-menu {
   position: absolute;
-  top: 40px;
+  top: 45px;
   right: -10px;
-  background-color: rgba(20, 20, 20, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  min-width: 200px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  min-width: 220px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.9);
 }
 
 .navbar-profile-arrow {
   position: absolute;
-  top: -10px;
-  right: 15px;
+  top: -6px;
+  right: 20px;
   width: 0;
   height: 0;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-bottom: 10px solid rgba(255, 255, 255, 0.2);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid rgba(255, 255, 255, 0.25);
 }
 
 .navbar-profile-header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
   gap: 10px;
 }
 
-.navbar-profile-img-lg,
-.navbar-profile-placeholder-lg {
-  width: 40px;
-  height: 40px;
+.navbar-profile-img-lg {
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.navbar-profile-placeholder-lg {
+  width: 36px;
+  height: 36px;
+  background-color: #808080;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
 }
 
 .navbar-profile-details-text {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex: 1;
 }
 
 .navbar-profile-name-lg {
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 500;
+  color: #fff;
 }
 
 .navbar-profile-email-lg {
-  font-size: 0.8rem;
-  color: var(--metflix-gray);
-  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: #808080;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.navbar-profile-details {
-  padding: 12px 16px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.navbar-profile-detail {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 0.85rem;
-}
-
-.navbar-profile-detail:last-child {
-  margin-bottom: 0;
-}
-
-.navbar-profile-detail-label {
-  color: var(--metflix-gray);
-}
-
-.navbar-profile-detail-value {
-  color: #fff;
-  font-weight: 500;
 }
 
 .navbar-profile-options {
@@ -749,24 +875,31 @@ onUnmounted(() => {
 .navbar-profile-option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  font-size: 0.9rem;
+  gap: 12px;
+  padding: 12px 12px;
+  font-size: 13px;
   cursor: pointer;
   transition: background-color 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar-profile-option:last-child {
+  border-bottom: none;
 }
 
 .navbar-profile-option:hover {
   background-color: rgba(255, 255, 255, 0.1);
+  text-decoration: underline;
 }
 
 .navbar-option-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .navbar-profile-logout {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 2px solid rgba(255, 255, 255, 0.25);
 }
 
 /* ANIMATIONS */
@@ -789,12 +922,113 @@ onUnmounted(() => {
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.notifications-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.notifications-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mark-all-btn,
+.clear-all-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.mark-all-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #e50914;
+}
+
+.clear-all-btn:hover {
+  background: rgba(229, 9, 20, 0.2);
+  border-color: #e50914;
+}
+
+.notifications-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.notification-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #fff;
+}
+
+.notification-message {
+  font-size: 13px;
+  margin: 0 0 6px 0;
+  color: #b3b3b3;
+  line-height: 1.4;
+}
+
+.mark-read-btn {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.mark-read-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #e50914;
+}
+
+.notifications-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.3;
+}
+
+.notifications-empty p {
+  font-size: 14px;
+  color: #808080;
+  margin: 0;
 }
 </style>

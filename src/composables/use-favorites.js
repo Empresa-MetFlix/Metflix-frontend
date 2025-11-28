@@ -1,75 +1,123 @@
-import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import api from '@/api/services/api'
+import tmdbService from '@/api/services/tmdbService'
 
-export const useFavoritesStore = defineStore('favorites', () => {
-  // Estado
-  const favorites = ref([])
+const favorites = ref([])
+const loading = ref(false)
 
-  // Carregar do localStorage ao iniciar
-  const loadFavorites = () => {
-    const stored = localStorage.getItem('metflix_favorites')
-    if (stored) {
-      try {
-        favorites.value = JSON.parse(stored)
-      } catch (error) {
-        console.error('Erro ao carregar favoritos:', error)
-        favorites.value = []
+export function useFavorites() {
+  
+  const loadFavorites = async () => {
+    try {
+      loading.value = true
+      const response = await api.get('/favorites/')
+      const data = response.data.results || response.data
+
+      const favoritesWithData = await Promise.all(
+        data.map(async (fav) => {
+          try {
+            const movieData = await tmdbService.getMovieDetails(fav.media_id)
+            return {
+              id: fav.id,
+              media_id: fav.media_id,
+              addedAt: fav.created_at,
+              ...movieData
+            }
+          } catch (error) {
+            console.error(`Erro ao buscar dados da mídia ${fav.media_id}:`, error)
+            return {
+              id: fav.id,
+              media_id: fav.media_id,
+              addedAt: fav.created_at,
+              title: `Mídia ${fav.media_id}`,
+              image: 'https://via.placeholder.com/300x450/333/fff?text=Sem+Dados'
+            }
+          }
+        })
+      )
+
+      favorites.value = favoritesWithData
+      console.log('✅ Favoritos carregados:', favorites.value.length)
+    } catch (error) {
+      console.error('Erro ao carregar favoritos:', error)
+      favorites.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // ✅ USA A ROTA /toggle/ DO BACKEND
+  const toggleFavorite = async (movie) => {
+    try {
+      console.log('🔄 Toggle favorito:', movie.title || movie.name)
+      
+      const response = await api.post('/favorites/toggle/', {
+        media_id: movie.id.toString(),
+        title: movie.title || movie.name || 'Conteúdo',
+        media_type: movie.media_type || (movie.title ? 'filme' : 'série')
+      })
+      
+      if (response.data.action === 'added') {
+        // ✅ ADICIONAR AO ARRAY LOCAL
+        favorites.value.unshift({
+          id: response.data.favorite.id,
+          media_id: movie.id.toString(),
+          addedAt: response.data.favorite.created_at,
+          ...movie
+        })
+        console.log('✅ Favorito adicionado via toggle, email enviado')
+        return true
+      } else {
+        // ✅ REMOVER DO ARRAY LOCAL
+        favorites.value = favorites.value.filter(f => f.media_id !== movie.id.toString())
+        console.log('✅ Favorito removido via toggle')
+        return false
       }
+    } catch (error) {
+      console.error('Erro ao toggle favorito:', error)
+      throw error
     }
   }
 
-  // Salvar no localStorage
-  const saveFavorites = () => {
-    localStorage.setItem('metflix_favorites', JSON.stringify(favorites.value))
+  // ✅ MANTIDO PARA COMPATIBILIDADE (mas não é mais usado)
+  const addFavorite = async (movie) => {
+    return await toggleFavorite(movie)
   }
 
-  // Adicionar aos favoritos
-  const addFavorite = (movie) => {
-    if (!isFavorite(movie.id)) {
-      favorites.value.push(movie)
-      saveFavorites()
+  // ✅ MANTIDO PARA COMPATIBILIDADE (mas não é mais usado)
+  const removeFavorite = async (mediaId) => {
+    const movie = favorites.value.find(f => f.media_id === mediaId.toString())
+    if (movie) {
+      return await toggleFavorite(movie)
     }
   }
 
-  // Remover dos favoritos
-  const removeFavorite = (movieId) => {
-    favorites.value = favorites.value.filter(m => m.id !== movieId)
-    saveFavorites()
+  const isFavorite = (mediaId) => {
+    return favorites.value.some(f => f.media_id === mediaId.toString())
   }
 
-  // Toggle (adicionar ou remover)
-  const toggleFavorite = (movie) => {
-    if (isFavorite(movie.id)) {
-      removeFavorite(movie.id)
-    } else {
-      addFavorite(movie)
+  const clearAllFavorites = async () => {
+    try {
+      await api.delete('/favorites/clear_all/')
+      favorites.value = []
+      console.log('✅ Todos os favoritos removidos')
+    } catch (error) {
+      console.error('Erro ao limpar favoritos:', error)
+      throw error
     }
   }
 
-  // Verificar se está nos favoritos
-  const isFavorite = (movieId) => {
-    return favorites.value.some(m => m.id === movieId)
-  }
-
-  // Limpar todos os favoritos
-  const clearFavorites = () => {
-    favorites.value = []
-    saveFavorites()
-  }
-
-  // Total de favoritos
   const favoritesCount = computed(() => favorites.value.length)
-
-  // Carregar ao iniciar
-  loadFavorites()
 
   return {
     favorites,
+    loading,
     favoritesCount,
+    loadFavorites,
     addFavorite,
     removeFavorite,
     toggleFavorite,
     isFavorite,
-    clearFavorites
+    clearAllFavorites,
   }
-})
+}

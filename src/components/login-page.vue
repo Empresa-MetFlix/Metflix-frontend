@@ -85,7 +85,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useAuth } from '../composables/use-auth.js'
+import { useAuth } from '../stores/use-auth.js'
 
 // Estado do formulário
 const loginForm = ref({

@@ -13,6 +13,7 @@ import SearchPage from '../views/search-page.vue'
 // Componentes
 import Main from '../components/main.vue'
 import MinhaLista from '../components/MinhaLista.vue'
+import ProfileManagement from '../components/profile-management.vue' // ✅ ADICIONAR
 
 const routes = [
   {
@@ -44,6 +45,12 @@ const routes = [
     path: '/search',
     name: 'Search',
     component: SearchPage
+  },
+  // ✅ ROTA PROFILE MANAGEMENT (NOVA)
+  {
+    path: '/profile-management',
+    name: 'ProfileManagement',
+    component: ProfileManagement
   },
   {
     path: '/faq',

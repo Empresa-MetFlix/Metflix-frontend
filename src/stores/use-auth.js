@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api/services/api.js'
+import api from '@/api/services/api'
 
 export const useAuth = defineStore('auth', () => {
   const user = ref(null)
@@ -13,14 +13,13 @@ export const useAuth = defineStore('auth', () => {
     api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
   }
 
-  // Login
+  // ✅ LOGIN - EXATAMENTE COMO ERA
   const login = async (credentials) => {
     try {
       console.log('🔐 Tentando login com:', { email: credentials.email })
       
-      // ✅ CORRETO: Enviar "email" (não "username")
       const response = await api.post('/token/', {
-        email: credentials.email,  // ✅ Serializer customizado espera "email"
+        email: credentials.email,
         password: credentials.password
       })
 
@@ -47,7 +46,6 @@ export const useAuth = defineStore('auth', () => {
       console.error('❌ Erro no login:', error)
       console.error('Detalhes:', error.response?.data)
       
-      // Mensagem de erro mais específica
       if (error.response?.data?.detail) {
         throw new Error(error.response.data.detail)
       } else if (error.response) {
@@ -62,12 +60,11 @@ export const useAuth = defineStore('auth', () => {
     }
   }
 
-  // Register (Cadastro)
+  // ✅ REGISTER - EXATAMENTE COMO ERA
   const register = async (userData) => {
     try {
       console.log('📝 Tentando registrar:', { email: userData.email, name: userData.name })
       
-      // ✅ CORRETO: Endpoint /register/
       const response = await api.post('/register/', {
         email: userData.email,
         password: userData.password,
@@ -95,19 +92,30 @@ export const useAuth = defineStore('auth', () => {
     }
   }
 
-  // Logout
+  // ✅ LOGOUT - CORRIGIDO E FUNCIONANDO
   const logout = () => {
+    console.log('🚪 Saindo da Metflix...')
+    
+    // Resetar estados
     user.value = null
     token.value = null
     refreshToken.value = null
     isAuthenticated.value = false
 
-    localStorage.removeItem('metflix_auth_token')
-    localStorage.removeItem('metflix_refresh_token')
+    // Limpar storage
+    localStorage.clear()
+    sessionStorage.clear()
+    
+    // Remover Authorization header
     delete api.defaults.headers.common['Authorization']
+    
+    // FORÇAR RELOAD TOTAL
+    setTimeout(() => {
+      window.location.href = '/'
+    }, 100)
   }
 
-  // Refresh Token
+  // ✅ REFRESH TOKEN
   const refreshAccessToken = async () => {
     try {
       const response = await api.post('/token/refresh/', {
@@ -127,7 +135,7 @@ export const useAuth = defineStore('auth', () => {
     }
   }
 
-  // Verificar autenticação
+  // ✅ CHECK AUTH
   const checkAuth = async () => {
     if (!token.value) {
       isAuthenticated.value = false
