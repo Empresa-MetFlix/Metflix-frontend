@@ -1,9 +1,5 @@
 <template>
   <div class="info-page">
-    <div class="info-header">
-      <router-link to="/login" class="back-link">← Voltar para Login</router-link>
-      <h1 class="logo">METFLIX</h1>
-    </div>
     <div class="info-content">
       <h1>Central de Ajuda</h1>
       
@@ -14,130 +10,192 @@
 
       <div class="help-topics">
         <div class="topic">
-          <h3>📺 Streaming e Reprodução</h3>
+          <div class="topic-icon">
+            <Tv />
+          </div>
+          <h3>Streaming e Reprodução</h3>
           <p>Problemas com reprodução, qualidade de vídeo ou buffering.</p>
         </div>
 
         <div class="topic">
-          <h3>💳 Cobrança e Pagamentos</h3>
+          <div class="topic-icon">
+            <CreditCard />
+          </div>
+          <h3>Cobrança e Pagamentos</h3>
           <p>Dúvidas sobre planos, cobranças ou métodos de pagamento.</p>
         </div>
 
         <div class="topic">
-          <h3>👤 Conta e Perfis</h3>
+          <div class="topic-icon">
+            <User />
+          </div>
+          <h3>Conta e Perfis</h3>
           <p>Gerenciar perfis, alterar senha ou atualizar informações.</p>
         </div>
 
         <div class="topic">
-          <h3>📱 Dispositivos</h3>
-          <p>Configurar MetFlix em diferentes dispositivos.</p>
+          <div class="topic-icon">
+            <Smartphone />
+          </div>
+          <h3>Dispositivos</h3>
+          <p>Configurar Metflix em diferentes dispositivos.</p>
         </div>
       </div>
 
       <div class="contact">
         <h2>Contato</h2>
-        <p>📞 Telefone: 0800-761-4631</p>
-        <p>📧 Email: suporte@metflix.com</p>
-        <p>💬 Chat: Disponível 24/7</p>
+        <div class="contact-item">
+          <Phone class="contact-icon" />
+          <p>Telefone: 0800-761-4631</p>
+        </div>
+        <div class="contact-item">
+          <Mail class="contact-icon" />
+          <p>Email: suporte@metflix.com</p>
+        </div>
+        <div class="contact-item">
+          <MessageCircle class="contact-icon" />
+          <p>Chat: Disponível 24/7</p>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
+<script setup>
+import { Tv, CreditCard, User, Smartphone, Phone, Mail, MessageCircle } from 'lucide-vue-next'
+</script>
+
 <style scoped>
 .info-page {
   min-height: 100vh;
-  background: #000;
+  background: #141414;
   color: #fff;
-}
-
-.info-header {
-  padding: 20px 50px;
-  border-bottom: 1px solid #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.back-link {
-  color: #e50914;
-  text-decoration: none;
-  font-size: 16px;
-}
-
-.back-link:hover {
-  text-decoration: underline;
-}
-
-.logo {
-  color: #e50914;
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0;
+  padding-top: 100px;
 }
 
 .info-content {
-  max-width: 900px;
-  margin: 60px auto;
-  padding: 0 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 60px 100px;
 }
 
 .info-content h1 {
-  font-size: 2.5rem;
-  margin-bottom: 40px;
+  font-size: 3rem;
+  margin-bottom: 20px;
+  font-weight: 700;
 }
 
 .help-section {
-  margin-bottom: 40px;
+  margin-bottom: 60px;
 }
 
 .help-section h2 {
   font-size: 1.8rem;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  font-weight: 600;
 }
 
 .help-section p {
   color: #b3b3b3;
   font-size: 1.1rem;
+  line-height: 1.6;
 }
 
 .help-topics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin: 40px 0;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin: 60px 0;
 }
 
 .topic {
-  background: #111;
-  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 30px;
   border-radius: 8px;
-  border: 1px solid #333;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s;
+}
+
+.topic:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #e50914;
+  transform: translateY(-4px);
+}
+
+.topic-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(229, 9, 20, 0.2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.topic-icon svg {
+  width: 24px;
+  height: 24px;
+  color: #e50914;
 }
 
 .topic h3 {
-  font-size: 1.2rem;
-  margin-bottom: 10px;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+  font-weight: 600;
 }
 
 .topic p {
   color: #b3b3b3;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .contact {
-  margin-top: 60px;
-  padding: 30px;
-  background: #111;
+  margin-top: 80px;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .contact h2 {
-  margin-bottom: 20px;
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+  font-weight: 600;
 }
 
-.contact p {
-  margin: 10px 0;
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.contact-icon {
+  width: 24px;
+  height: 24px;
+  color: #e50914;
+  flex-shrink: 0;
+}
+
+.contact-item p {
+  margin: 0;
   font-size: 1.1rem;
+  color: #e5e5e5;
+}
+
+@media (max-width: 768px) {
+  .info-content {
+    padding: 20px 30px 80px;
+  }
+
+  .info-content h1 {
+    font-size: 2rem;
+  }
+
+  .help-topics {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

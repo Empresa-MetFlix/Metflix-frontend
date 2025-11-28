@@ -30,9 +30,18 @@
       @back="activeProfile = null"
     />
 
+    <!-- ✅ TELA DE CADASTRO -->
+    <SignupPage 
+      v-else-if="showSignup"
+      @signup-success="handleSignupSuccess"
+      @back-to-login="showSignup = false"
+    />
+
+    <!-- ✅ TELA DE LOGIN -->
     <LoginPage 
       v-else
       @login-success="handleLoginSuccess"
+      @go-to-signup="showSignup = true"
     />
   </div>
 </template>
@@ -43,6 +52,7 @@ import { useAuth } from "./stores/use-auth.js"
 import { useRouter } from "vue-router"
 import Navbar from "./components/navbar.vue"
 import LoginPage from "./components/login-page.vue"
+import SignupPage from "./components/signup-page.vue"
 import ProfileManagement from "./components/profile-management.vue"
 
 const authStore = useAuth()
@@ -51,6 +61,7 @@ const router = useRouter()
 const isAuthenticated = ref(false)
 const activeProfile = ref(null)
 const profileManagementRef = ref(null)
+const showSignup = ref(false)
 
 const checkAuth = () => {
   const token = localStorage.getItem('metflix_auth_token')
@@ -62,7 +73,6 @@ onMounted(() => {
   console.log('📱 Metflix-app montado')
   checkAuth()
   
-  // ✅ VERIFICAR SE JÁ TEM PERFIL ATIVO SALVO
   const saved = localStorage.getItem("metflix_active_profile")
   if (saved && isAuthenticated.value) {
     try {
@@ -76,29 +86,33 @@ onMounted(() => {
   }
 })
 
-// ✅ APÓS LOGIN: NÃO SELECIONA PERFIL AUTOMATICAMENTE
 const handleLoginSuccess = async () => {
   console.log('✅ Login success no metflix-app')
   
   await nextTick()
   checkAuth()
   
-  // ✅ LIMPAR PERFIL ATIVO PARA MOSTRAR TELA DE SELEÇÃO
   localStorage.removeItem('metflix_active_profile')
   activeProfile.value = null
+  showSignup.value = false
   
   console.log('🎭 Mostrando tela de seleção de perfis')
+}
+
+// ✅ NOVO - Após cadastro bem-sucedido
+const handleSignupSuccess = () => {
+  console.log('✅ Cadastro realizado com sucesso!')
+  showSignup.value = false
+  // Usuário será redirecionado para login automaticamente
 }
 
 const handleProfileSelected = (profile) => {
   console.log("📌 Profile selected:", profile.name)
 }
 
-// ✅ QUANDO O PERFIL É CONFIRMADO (SELECIONADO OU CRIADO)
 const handleProfileConfirmed = async (profile) => {
   console.log("✅ Perfil confirmado:", profile.name)
   
-  // Salvar no localStorage
   localStorage.setItem('metflix_active_profile', JSON.stringify(profile))
   activeProfile.value = profile
   
@@ -106,12 +120,10 @@ const handleProfileConfirmed = async (profile) => {
   router.push('/')
 }
 
-// ✅ ABRIR GERENCIAMENTO DE PERFIS PELA NAVBAR
 const openProfileManagement = () => {
   console.log('🔄 Abrindo gerenciamento de perfis')
   activeProfile.value = null
   
-  // ✅ Ativar modo gerenciamento no ProfileManagement
   nextTick(() => {
     if (profileManagementRef.value) {
       profileManagementRef.value.activateManageMode()
@@ -128,6 +140,7 @@ const handleLogout = () => {
   
   activeProfile.value = null
   isAuthenticated.value = false
+  showSignup.value = false
   
   authStore.logout()
   

@@ -70,7 +70,7 @@
       <!-- Cadastro -->
       <div class="signup-section">
         <span class="signup-text">Novo por aqui?</span>
-        <a href="#" class="signup-link">Assine agora.</a>
+        <a href="#" class="signup-link" @click.prevent="handleSignup">Assine agora.</a>
       </div>
 
       <!-- reCAPTCHA info -->
@@ -106,8 +106,8 @@ const errorMessage = ref('')
 // Auth store
 const authStore = useAuth()
 
-// Emit para informar login bem-sucedido
-const emit = defineEmits(['login-success'])
+// Emit para informar login bem-sucedido e ir para cadastro
+const emit = defineEmits(['login-success', 'go-to-signup'])
 
 // Validações
 const validateEmail = () => {
@@ -169,6 +169,12 @@ const handleLogin = async () => {
   }
 }
 
+// ✅ NOVO - Ir para cadastro
+const handleSignup = () => {
+  console.log('📝 Redirecionando para cadastro...')
+  emit('go-to-signup')
+}
+
 // Carregar email salvo ao montar
 onMounted(() => {
   const savedEmail = localStorage.getItem('metflix_saved_email')
@@ -201,7 +207,6 @@ onMounted(() => {
   background-position: center;
   z-index: -1;
 }
-
 
 .login-header {
   position: absolute;
@@ -370,6 +375,7 @@ onMounted(() => {
   color: #fff;
   text-decoration: none;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .signup-link:hover {

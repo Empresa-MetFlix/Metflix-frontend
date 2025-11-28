@@ -1,11 +1,15 @@
 import { ref, computed } from 'vue'
 import api from '@/api/services/api'
 import tmdbService from '@/api/services/tmdbService'
+import { useNotifications } from './use-notifications' // ✅ ADICIONAR
 
 const favorites = ref([])
 const loading = ref(false)
 
 export function useFavorites() {
+  
+  // ✅ ADICIONAR - Importar função de notificações
+  const { loadNotifications } = useNotifications()
   
   const loadFavorites = async () => {
     try {
@@ -66,6 +70,13 @@ export function useFavorites() {
           ...movie
         })
         console.log('✅ Favorito adicionado via toggle, email enviado')
+        
+        // ✅ ADICIONAR - Recarregar notificações após 500ms
+        setTimeout(() => {
+          console.log('🔔 Recarregando notificações...')
+          loadNotifications()
+        }, 500)
+        
         return true
       } else {
         // ✅ REMOVER DO ARRAY LOCAL

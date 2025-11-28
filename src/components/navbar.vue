@@ -187,6 +187,11 @@
                 <HelpCircle class="navbar-option-icon" />
                 Ajuda
               </li>
+              <!-- ✅ NOVO - BOTÃO EXCLUIR CONTA -->
+              <li class="navbar-profile-option navbar-profile-danger" @click="openDeleteModal">
+                <Trash2 class="navbar-option-icon" />
+                Excluir Conta
+              </li>
               <li class="navbar-profile-option navbar-profile-logout" @click="handleLogout">
                 <LogOut class="navbar-option-icon" />
                 Sair da Metflix
@@ -196,16 +201,24 @@
         </div>
       </div>
     </nav>
+
+    <!-- ✅ MODAL DE EXCLUSÃO DE CONTA -->
+    <DeleteAccountModal
+      :is-open="showDeleteModal"
+      @close="showDeleteModal = false"
+      @account-deleted="handleAccountDeleted"
+    />
   </header>
 </template>
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Search, Bell, User, HelpCircle, LogOut } from 'lucide-vue-next'
+import { Search, Bell, User, HelpCircle, LogOut, Trash2 } from 'lucide-vue-next'
 import { useAuth } from '../stores/use-auth.js'
 import { useMovies } from '../composables/use-movies.js'
 import { useNotifications } from '../composables/use-notifications.js'
+import DeleteAccountModal from './delete-account-modal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -358,6 +371,7 @@ const getNotificationIcon = (type) => {
 // PERFIL
 const isScrolled = ref(false)
 const showProfileMenu = ref(false)
+const showDeleteModal = ref(false) // ✅ NOVO
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 0
@@ -375,6 +389,18 @@ const goToProfiles = () => {
 const goToHelp = () => {
   showProfileMenu.value = false
   router.push({ name: 'Help' })
+}
+
+// ✅ NOVO - ABRIR MODAL DE EXCLUSÃO
+const openDeleteModal = () => {
+  showProfileMenu.value = false
+  showDeleteModal.value = true
+}
+
+// ✅ NOVO - APÓS EXCLUSÃO DA CONTA
+const handleAccountDeleted = () => {
+  console.log('🗑️ Conta excluída, fazendo logout...')
+  handleLogout()
 }
 
 const handleLogout = async () => {
@@ -711,6 +737,9 @@ onUnmounted(() => {
 }
 
 .notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.25);
 }
@@ -719,6 +748,42 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 700;
   margin: 0;
+}
+
+.notifications-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mark-all-btn,
+.clear-all-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.mark-all-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #e50914;
+}
+
+.clear-all-btn:hover {
+  background: rgba(229, 9, 20, 0.2);
+  border-color: #e50914;
+}
+
+.notifications-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: #999;
 }
 
 .notifications-list {
@@ -752,15 +817,61 @@ onUnmounted(() => {
   flex: 1;
 }
 
-.notification-content p {
+.notification-title {
   font-size: 14px;
+  font-weight: 600;
   margin: 0 0 4px 0;
+  color: #fff;
+}
+
+.notification-message {
+  font-size: 13px;
+  margin: 0 0 6px 0;
+  color: #b3b3b3;
   line-height: 1.4;
 }
 
 .notification-time {
   font-size: 12px;
   color: #808080;
+}
+
+.mark-read-btn {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.mark-read-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #e50914;
+}
+
+.notifications-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.3;
+}
+
+.notifications-empty p {
+  font-size: 14px;
+  color: #808080;
+  margin: 0;
 }
 
 /* PERFIL */
@@ -898,6 +1009,16 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+/* ✅ NOVO - ESTILO PARA EXCLUIR CONTA */
+.navbar-profile-danger {
+  color: #ff4444;
+}
+
+.navbar-profile-danger:hover {
+  background-color: rgba(229, 9, 20, 0.1);
+  color: #e50914;
+}
+
 .navbar-profile-logout {
   border-top: 2px solid rgba(255, 255, 255, 0.25);
 }
@@ -929,106 +1050,5 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
-}
-.notifications-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-}
-
-.notifications-header h3 {
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.notifications-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.mark-all-btn,
-.clear-all-btn {
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s;
-}
-
-.mark-all-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #e50914;
-}
-
-.clear-all-btn:hover {
-  background: rgba(229, 9, 20, 0.2);
-  border-color: #e50914;
-}
-
-.notifications-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 40px 20px;
-  color: #999;
-}
-
-.notification-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0 0 4px 0;
-  color: #fff;
-}
-
-.notification-message {
-  font-size: 13px;
-  margin: 0 0 6px 0;
-  color: #b3b3b3;
-  line-height: 1.4;
-}
-
-.mark-read-btn {
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.mark-read-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: #e50914;
-}
-
-.notifications-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 15px;
-  opacity: 0.3;
-}
-
-.notifications-empty p {
-  font-size: 14px;
-  color: #808080;
-  margin: 0;
 }
 </style>

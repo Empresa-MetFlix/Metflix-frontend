@@ -1,96 +1,128 @@
 <template>
   <div class="info-page">
-    <div class="info-header">
-      <router-link to="/login" class="back-link">← Voltar para Login</router-link>
-      <h1 class="logo">METFLIX</h1>
-    </div>
     <div class="info-content">
       <h1>Perguntas Frequentes</h1>
       
-      <div class="faq-item">
-        <h2>O que é o MetFlix?</h2>
-        <p>MetFlix é uma plataforma de streaming que oferece uma ampla variedade de séries, filmes e documentários premiados.</p>
-      </div>
-
-      <div class="faq-item">
-        <h2>Quanto custa o MetFlix?</h2>
-        <p>Oferecemos diferentes planos de assinatura para atender suas necessidades. Acesse sua conta para ver os planos disponíveis.</p>
-      </div>
-
-      <div class="faq-item">
-        <h2>Onde posso assistir?</h2>
-        <p>Você pode assistir em qualquer dispositivo conectado à internet, incluindo Smart TVs, smartphones, tablets e computadores.</p>
-      </div>
-
-      <div class="faq-item">
-        <h2>Como faço para cancelar?</h2>
-        <p>Você pode cancelar sua assinatura a qualquer momento através das configurações da sua conta.</p>
-      </div>
-
-      <div class="faq-item">
-        <h2>O que posso assistir no MetFlix?</h2>
-        <p>O MetFlix tem uma vasta biblioteca de filmes, séries, documentários e muito mais. Assista o quanto quiser, quando quiser.</p>
+      <div class="faq-item" v-for="(faq, index) in faqs" :key="index">
+        <div class="faq-question">
+          <HelpCircle class="faq-icon" />
+          <h2>{{ faq.question }}</h2>
+        </div>
+        <p>{{ faq.answer }}</p>
       </div>
     </div>
   </div>
 </template>
 
+<script setup>
+import { HelpCircle } from 'lucide-vue-next'
+
+const faqs = [
+  {
+    question: 'O que é o Metflix?',
+    answer: 'Metflix é uma plataforma de streaming que oferece uma ampla variedade de séries, filmes e documentários premiados.'
+  },
+  {
+    question: 'Quanto custa o Metflix?',
+    answer: 'Oferecemos diferentes planos de assinatura para atender suas necessidades. Acesse sua conta para ver os planos disponíveis.'
+  },
+  {
+    question: 'Onde posso assistir?',
+    answer: 'Você pode assistir em qualquer dispositivo conectado à internet, incluindo Smart TVs, smartphones, tablets e computadores.'
+  },
+  {
+    question: 'Como faço para cancelar?',
+    answer: 'Você pode cancelar sua assinatura a qualquer momento através das configurações da sua conta.'
+  },
+  {
+    question: 'O que posso assistir no Metflix?',
+    answer: 'O Metflix tem uma vasta biblioteca de filmes, séries, documentários e muito mais. Assista o quanto quiser, quando quiser.'
+  },
+  {
+    question: 'Posso compartilhar minha conta?',
+    answer: 'Sim! Você pode criar múltiplos perfis na sua conta e compartilhar com sua família.'
+  }
+]
+</script>
+
 <style scoped>
 .info-page {
   min-height: 100vh;
-  background: #000;
+  background: #141414;
   color: #fff;
-}
-
-.info-header {
-  padding: 20px 50px;
-  border-bottom: 1px solid #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.back-link {
-  color: #e50914;
-  text-decoration: none;
-  font-size: 16px;
-}
-
-.back-link:hover {
-  text-decoration: underline;
-}
-
-.logo {
-  color: #e50914;
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0;
+  padding-top: 100px;
 }
 
 .info-content {
   max-width: 900px;
-  margin: 60px auto;
-  padding: 0 20px;
+  margin: 0 auto;
+  padding: 40px 60px 100px;
 }
 
 .info-content h1 {
-  font-size: 2.5rem;
-  margin-bottom: 40px;
+  font-size: 3rem;
+  margin-bottom: 60px;
+  font-weight: 700;
 }
 
 .faq-item {
-  margin-bottom: 30px;
-  padding-bottom: 30px;
-  border-bottom: 1px solid #333;
+  margin-bottom: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.faq-item:last-child {
+  border-bottom: none;
+}
+
+.faq-question {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.faq-icon {
+  width: 28px;
+  height: 28px;
+  color: #e50914;
+  flex-shrink: 0;
 }
 
 .faq-item h2 {
   font-size: 1.5rem;
-  margin-bottom: 10px;
+  font-weight: 600;
+  margin: 0;
 }
 
 .faq-item p {
   color: #b3b3b3;
-  line-height: 1.6;
+  line-height: 1.7;
+  font-size: 1.05rem;
+  margin-left: 44px;
+}
+
+@media (max-width: 768px) {
+  .info-content {
+    padding: 20px 30px 80px;
+  }
+
+  .info-content h1 {
+    font-size: 2rem;
+    margin-bottom: 40px;
+  }
+
+  .faq-item h2 {
+    font-size: 1.25rem;
+  }
+
+  .faq-item p {
+    margin-left: 0;
+  }
+
+  .faq-question {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>
