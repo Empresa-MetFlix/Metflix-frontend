@@ -1,273 +1,198 @@
-
 <template>
-  <div class="login-page">
-    <div class="login-background">
-      <img 
-        src="https://reactflix-sigma-peach.vercel.app/assets/bannerNetflix.ae2c1792.jpg" 
-        alt="Background" 
-        class="login-background-image"
-      />
-      <div class="login-background-overlay"></div>
-    </div>
+  <div class="login-container">
+    <!-- Background com imagem -->
+    <div class="login-background"></div>
 
+    <!-- Logo no topo -->
     <header class="login-header">
-      <h1 class="login-logo">METFLIX</h1>
+      <h1 class="logo">METFLIX</h1>
     </header>
 
-    <main class="login-container">
-      <div class="login-form-container">
-        <h2 class="login-title">{{ isLoginMode ? 'Entrar' : 'Criar Conta' }}</h2>
-        
-        <form @submit.prevent="handleSubmit" class="login-form">
-          <div v-if="!isLoginMode" class="login-form-group" :class="{ 'has-error': errors.name }">
-            <input 
-              type="text" 
-              id="name" 
-              v-model="form.name" 
-              class="login-input"
-              required
-              @focus="clearError('name')"
-            />
-            <label for="name" class="login-label">Nome completo</label>
-            <div v-if="errors.name" class="login-error">{{ errors.name }}</div>
-          </div>
+    <!-- Card de Login -->
+    <div class="login-card">
+      <h2 class="login-title">Entrar</h2>
 
-          <div class="login-form-group" :class="{ 'has-error': errors.email }">
-            <input 
-              type="email" 
-              id="email" 
-              v-model="form.email" 
-              class="login-input"
-              required
-              @focus="clearError('email')"
-            />
-            <label for="email" class="login-label">Email ou número de telefone</label>
-            <div v-if="errors.email" class="login-error">{{ errors.email }}</div>
-          </div>
-          
-          <div class="login-form-group" :class="{ 'has-error': errors.password }">
-            <input 
-              :type="showPassword ? 'text' : 'password'" 
-              id="password" 
-              v-model="form.password" 
-              class="login-input"
-              required
-              @focus="clearError('password')"
-            />
-            <label for="password" class="login-label">Senha</label>
-            <button 
-              type="button" 
-              class="login-password-toggle" 
-              @click="togglePasswordVisibility"
-            >
-              {{ showPassword ? 'OCULTAR' : 'MOSTRAR' }}
-            </button>
-            <div v-if="errors.password" class="login-error">{{ errors.password }}</div>
-          </div>
+      <!-- Mensagem de Erro -->
+      <div v-if="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
 
-          <div v-if="!isLoginMode" class="login-form-group" :class="{ 'has-error': errors.confirmPassword }">
-            <input 
-              :type="showConfirmPassword ? 'text' : 'password'" 
-              id="confirmPassword" 
-              v-model="form.confirmPassword" 
-              class="login-input"
-              required
-              @focus="clearError('confirmPassword')"
-            />
-            <label for="confirmPassword" class="login-label">Confirmar senha</label>
-            <button 
-              type="button" 
-              class="login-password-toggle" 
-              @click="toggleConfirmPasswordVisibility"
-            >
-              {{ showConfirmPassword ? 'OCULTAR' : 'MOSTRAR' }}
-            </button>
-            <div v-if="errors.confirmPassword" class="login-error">{{ errors.confirmPassword }}</div>
-          </div>
-          
-          <div v-if="errors.general" class="login-error general-error">
-            {{ errors.general }}
-          </div>
-          
-          <button type="submit" class="login-button" :disabled="isLoading">
-            {{ isLoading ? (isLoginMode ? 'Entrando...' : 'Criando conta...') : (isLoginMode ? 'Entrar' : 'Criar Conta') }}
+      <!-- Formulário -->
+      <form @submit.prevent="handleLogin" class="login-form">
+        <!-- Email -->
+        <div class="form-group">
+          <input
+            type="email"
+            v-model="loginForm.email"
+            placeholder="Email ou número de telefone"
+            class="form-input"
+            :class="{ 'input-error': errors.email }"
+            @blur="validateEmail"
+          />
+          <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
+        </div>
+
+        <!-- Senha -->
+        <div class="form-group">
+          <input
+            :type="showPassword ? 'text' : 'password'"
+            v-model="loginForm.password"
+            placeholder="Senha"
+            class="form-input"
+            :class="{ 'input-error': errors.password }"
+            @blur="validatePassword"
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            @click="showPassword = !showPassword"
+          >
+            {{ showPassword ? 'OCULTAR' : 'MOSTRAR' }}
           </button>
-          
-          <div class="login-options">
-            <div class="login-remember">
-              <input type="checkbox" id="remember" v-model="form.remember" />
-              <label for="remember">Lembre-se de mim</label>
-            </div>
-            <a href="#" class="login-help">Precisa de ajuda?</a>
-          </div>
-        </form>
-        
-        <div class="login-signup">
-          <p>
-            {{ isLoginMode ? 'Novo por aqui?' : 'Já tem uma conta?' }}
-            <a href="#" @click.prevent="toggleMode" class="login-signup-link">
-              {{ isLoginMode ? 'Assine agora' : 'Faça login' }}
-            </a>.
-          </p>
+          <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
         </div>
-        
-        <div class="login-captcha">
-          <p>Esta página é protegida pelo Google reCAPTCHA para garantir que você não é um robô.</p>
-        </div>
-      </div>
-    </main>
 
-    <footer class="login-footer">
-      <div class="login-footer-content">
-        <p>Dúvidas? Ligue 0800-761-4631</p>
-        <div class="login-footer-links">
-          <a href="#">Perguntas frequentes</a>
-          <a href="#">Central de Ajuda</a>
-          <a href="#">Termos de Uso</a>
-          <a href="#">Privacidade</a>
-          <a href="#">Preferências de cookies</a>
-          <a href="#">Informações corporativas</a>
+        <!-- Botão Entrar -->
+        <button type="submit" class="btn-login" :disabled="isLoading">
+          {{ isLoading ? 'Entrando...' : 'Entrar' }}
+        </button>
+
+        <!-- Opções -->
+        <div class="login-options">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="rememberMe" />
+            <span>Lembre-se de mim</span>
+          </label>
+          <a href="#" class="link-help">Precisa de ajuda?</a>
         </div>
-        <div class="login-footer-language">
-          <select class="login-language-selector">
-            <option value="pt">Português</option>
-            <option value="en">English</option>
-          </select>
-        </div>
+      </form>
+
+      <!-- Cadastro -->
+      <div class="signup-section">
+        <span class="signup-text">Novo por aqui?</span>
+        <a href="#" class="signup-link" @click.prevent="handleSignup">Assine agora.</a>
       </div>
-    </footer>
+
+      <!-- reCAPTCHA info -->
+      <div class="recaptcha-info">
+        Esta página é protegida pelo Google reCAPTCHA para
+        garantir que você não é um robô.
+        <a href="#" class="link-info">Saiba mais</a>.
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuth } from '../composables/use-auth' // seu composable atual
+import { ref, onMounted } from 'vue'
+import { useAuth } from '../stores/use-auth.js'
 
-// --- reactive ---
-const form = ref({
-  name: '',
+// Estado do formulário
+const loginForm = ref({
   email: '',
-  password: '',
-  confirmPassword: '',
-  remember: false,
+  password: ''
 })
 
-const isLoginMode = ref(true)
-const isLoading = ref(false)
-const errors = ref({})
+const errors = ref({
+  email: '',
+  password: ''
+})
+
 const showPassword = ref(false)
-const showConfirmPassword = ref(false)
+const rememberMe = ref(false)
+const isLoading = ref(false)
+const errorMessage = ref('')
 
-const store = useAuth()
-const router = useRouter()
+// Auth store
+const authStore = useAuth()
 
-const clearError = (field) => {
-  if (errors.value[field]) {
-    delete errors.value[field]
-    if (errors.value.general) delete errors.value.general
+// Emit para informar login bem-sucedido e ir para cadastro
+const emit = defineEmits(['login-success', 'go-to-signup'])
+
+// Validações
+const validateEmail = () => {
+  if (!loginForm.value.email) {
+    errors.value.email = 'Informe um email ou número de telefone válido.'
+    return false
   }
+  errors.value.email = ''
+  return true
 }
 
-const togglePasswordVisibility = () => (showPassword.value = !showPassword.value)
-const toggleConfirmPasswordVisibility = () => (showConfirmPassword.value = !showConfirmPassword.value)
-const toggleMode = () => {
-  isLoginMode.value = !isLoginMode.value
-  errors.value = {}
-  form.value.password = ''
-  form.value.confirmPassword = ''
+const validatePassword = () => {
+  if (!loginForm.value.password) {
+    errors.value.password = 'A senha deve ter entre 4 e 60 caracteres.'
+    return false
+  }
+  if (loginForm.value.password.length < 4 || loginForm.value.password.length > 60) {
+    errors.value.password = 'A senha deve ter entre 4 e 60 caracteres.'
+    return false
+  }
+  errors.value.password = ''
+  return true
 }
 
-const validateForm = () => {
-  errors.value = {}
-  let isValid = true
-
-  if (!isLoginMode.value) {
-    if (!form.value.name || form.value.name.length < 3) {
-      errors.value.name = 'Nome completo é obrigatório e deve ter no mínimo 3 caracteres.'
-      isValid = false
-    }
-    if (form.value.password !== form.value.confirmPassword) {
-      errors.value.confirmPassword = 'As senhas não coincidem.'
-      isValid = false
-    }
-  }
-
-  if (!form.value.email || !/^\S+@\S+\.\S+$/.test(form.value.email)) {
-    errors.value.email = 'Insira um email válido.'
-    isValid = false
-  }
-
-  if (!form.value.password || form.value.password.length < 6) {
-    errors.value.password = 'A senha deve ter no mínimo 6 caracteres.'
-    isValid = false
-  }
-
-  return isValid
+const validateLogin = () => {
+  const emailValid = validateEmail()
+  const passwordValid = validatePassword()
+  return emailValid && passwordValid
 }
 
-// --- LOGIN ---
+// Login
 const handleLogin = async () => {
-  if (!validateForm()) return
+  if (!validateLogin()) return
 
   isLoading.value = true
-  errors.value.general = null
+  errorMessage.value = ''
 
   try {
-    await store.login(form.value.email, form.value.password)
+    await authStore.login({
+      email: loginForm.value.email,
+      password: loginForm.value.password
+    })
 
-    if (form.value.remember) {
-      localStorage.setItem('metflix_remember', 'true')
+    // Salvar email se "Lembre-se de mim" estiver marcado
+    if (rememberMe.value) {
+      localStorage.setItem('metflix_saved_email', loginForm.value.email)
     } else {
-      localStorage.removeItem('metflix_remember')
+      localStorage.removeItem('metflix_saved_email')
     }
 
-    // 🔥 AGORA LOGIN → HOME DIRETO
-    await router.push("/")
+    // Emitir evento de sucesso para metflix-app
+    emit('login-success')
 
   } catch (error) {
-    errors.value.general = error.message || 'Erro de autenticação. Tente novamente.'
-    console.error('Login falhou:', error)
+    console.error('Erro no login:', error)
+    errorMessage.value = 'Email ou senha incorretos. Tente novamente.'
   } finally {
     isLoading.value = false
   }
 }
 
-// --- SIGNUP ---
-const handleSignup = async () => {
-  if (!validateForm()) return
+// ✅ NOVO - Ir para cadastro
+const handleSignup = () => {
+  console.log('📝 Redirecionando para cadastro...')
+  emit('go-to-signup')
+}
 
-  isLoading.value = true
-  errors.value.general = null
-
-  try {
-    await store.register(form.value.name, form.value.email, form.value.password)
-    // após criar conta, alterna para modo login para permitir o login imediatamente
-    isLoginMode.value = true
-    form.value.password = ''
-    form.value.confirmPassword = ''
-  } catch (error) {
-    errors.value.email = error.message || 'Erro ao criar conta.'
-    console.error('Registro falhou:', error)
-  } finally {
-    isLoading.value = false
+// Carregar email salvo ao montar
+onMounted(() => {
+  const savedEmail = localStorage.getItem('metflix_saved_email')
+  if (savedEmail) {
+    loginForm.value.email = savedEmail
+    rememberMe.value = true
   }
-}
-
-const handleSubmit = () => {
-  if (isLoginMode.value) handleLogin()
-  else handleSignup()
-}
+})
 </script>
 
-    
 <style scoped>
-/* O CSS é mantido inalterado */
-.login-page {
+.login-container {
   min-height: 100vh;
   position: relative;
-  color: #fff;
-  font-family: 'Roboto', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .login-background {
@@ -276,242 +201,212 @@ const handleSubmit = () => {
   left: 0;
   width: 100%;
   height: 100%;
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8)),
+    url('https://images.unsplash.com/photo-1574267432644-f610dfb4e1f4?w=1920&q=80');
+  background-size: cover;
+  background-position: center;
   z-index: -1;
 }
 
-.login-background-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.login-background-overlay {
+.login-header {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  padding: 20px 40px;
+  z-index: 10;
 }
 
-.login-header {
-  padding: 1.5rem 3%;
-}
-
-.login-logo {
+.logo {
   color: #e50914;
-  font-size: 2rem;
-  font-weight: bold;
-  letter-spacing: -1px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 2px;
 }
 
-.login-container {
-  display: flex;
-  justify-content: center;
-  padding: 0 5%;
-  margin-top: 2rem;
-}
-
-.login-form-container {
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
-  padding: 3rem;
+.login-card {
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 4px;
+  padding: 60px 68px 40px;
   width: 100%;
   max-width: 450px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  z-index: 1;
 }
 
 .login-title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
+  color: #fff;
+  font-size: 32px;
+  font-weight: 500;
+  margin-bottom: 28px;
+}
+
+.error-message {
+  background-color: #e87c03;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 16px;
 }
 
-.login-form-group {
+.form-group {
   position: relative;
-  margin-bottom: 1rem;
-}
-
-.login-input {
   width: 100%;
-  background-color: rgba(51, 51, 51, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 16px 20px;
+  background-color: #333;
+  border: none;
+  border-radius: 4px;
   color: #fff;
-  padding: 1rem 1rem;
-  font-size: 1rem;
-  height: 3.5rem;
+  font-size: 16px;
   outline: none;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s;
 }
 
-.login-input:focus {
-  border-color: #e50914;
-  background-color: rgba(51, 51, 51, 0.9);
-  box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.2);
+.form-input:focus {
+  background-color: #454545;
 }
 
-.login-input:focus + .login-label,
-.login-input:not(:placeholder-shown) + .login-label {
-  transform: translateY(-0.75rem) scale(0.8);
-  color: #8c8c8c;
+.form-input.input-error {
+  border-bottom: 2px solid #e87c03;
 }
 
-.login-label {
+.toggle-password {
   position: absolute;
+  right: 10px;
   top: 50%;
-  left: 1rem;
-  transform: translateY(-50%);
-  color: #8c8c8c;
-  transition: all 0.2s ease;
-  pointer-events: none;
-}
-
-.login-password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 1rem;
   transform: translateY(-50%);
   background: none;
   border: none;
   color: #8c8c8c;
-  font-size: 0.8rem;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  padding: 5px 10px;
 }
 
-.login-button {
-  background: linear-gradient(135deg, #e50914 0%, #f40612 100%);
+.toggle-password:hover {
   color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 1rem;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 1.5rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(229, 9, 20, 0.3);
 }
 
-.login-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(229, 9, 20, 0.4);
+.error-text {
+  color: #e87c03;
+  font-size: 13px;
+  margin-top: 6px;
+  display: block;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 16px;
+  background-color: #e50914;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 24px;
+}
+
+.btn-login:hover:not(:disabled) {
+  background-color: #f40612;
+}
+
+.btn-login:disabled {
+  background-color: #8c8c8c;
+  cursor: not-allowed;
 }
 
 .login-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 0.5rem;
-  color: #b3b3b3;
-  font-size: 0.9rem;
+  margin-top: 12px;
 }
 
-.login-remember {
+.checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.login-help {
+  gap: 8px;
   color: #b3b3b3;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.link-help {
+  color: #b3b3b3;
+  font-size: 13px;
   text-decoration: none;
 }
 
-.login-help:hover {
+.link-help:hover {
   text-decoration: underline;
 }
 
-.login-signup {
-  margin-top: 4rem;
+.signup-section {
+  margin-top: 16px;
   color: #737373;
+  font-size: 16px;
 }
 
-.login-signup-link {
-  color: #e50914;
+.signup-text {
+  margin-right: 5px;
+}
+
+.signup-link {
+  color: #fff;
   text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s ease;
+  font-weight: 500;
+  cursor: pointer;
 }
 
-.login-signup-link:hover {
-  color: #f40612;
+.signup-link:hover {
   text-decoration: underline;
 }
 
-.login-captcha {
-  margin-top: 1rem;
+.recaptcha-info {
+  margin-top: 16px;
   color: #8c8c8c;
-  font-size: 0.8rem;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.login-error {
-  color: #e87c03;
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
-}
-
-.general-error {
-  text-align: center;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
-
-.has-error .login-input {
-  border: 1px solid #e87c03;
-  box-shadow: 0 0 0 1px #e87c03;
-}
-
-.login-footer {
-  background-color: rgba(0, 0, 0, 0.75);
-  padding: 2rem 0;
-  margin-top: 5rem;
-}
-
-.login-footer-content {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 0 5%;
-  color: #737373;
-}
-
-.login-footer-links {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-
-@media (min-width: 768px) {
-  .login-footer-links {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.login-footer-links a {
-  color: #737373;
+.link-info {
+  color: #0071eb;
   text-decoration: none;
-  font-size: 0.8rem;
 }
 
-.login-footer-links a:hover {
+.link-info:hover {
   text-decoration: underline;
 }
 
-.login-language-selector {
-  background-color: #000;
-  color: #737373;
-  border: 1px solid #737373;
-  padding: 0.5rem;
-  border-radius: 2px;
+@media (max-width: 768px) {
+  .login-card {
+    padding: 40px 30px;
+    max-width: 100%;
+    margin: 20px;
+  }
+
+  .login-title {
+    font-size: 28px;
+  }
 }
 </style>

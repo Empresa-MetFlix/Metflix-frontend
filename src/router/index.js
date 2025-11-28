@@ -1,45 +1,87 @@
-import { createRouter, createWebHistory } from "vue-router";
-import LoginPage from "../components/login-page.vue";   // login isolado
-import MetflixApp from "../metflix-app.vue";            // app principal (com navbar e footer)
-import HomeView from "../components/main.vue";         // exemplo de página interna
-import ProfileManagement from "../components/ProfileManagement.vue";
-import MinhaLista from "../components/MinhaLista.vue";
-import SeriesPage from "../components/SeriesPage.vue";
-import FilmesPage from "../components/FilmesPage.vue";
-import BombandoPage from "../components/BombandoPage.vue";
+import { createRouter, createWebHistory } from 'vue-router'
+
+// Páginas em /views
+import FaqPage from '../views/faq-page.vue'
+import HelpPage from '../views/help-page.vue'
+import TermsPage from '../views/terms-page.vue'
+import PrivacyPage from '../views/privacy-page.vue'
+import SeriesPage from '../views/series-page.vue'
+import FilmesPage from '../views/filmes-page.vue'
+import BombandoPage from '../views/bombando-page.vue'
+import SearchPage from '../views/search-page.vue'
+
+// Componentes
+import Main from '../components/main.vue'
+import MinhaLista from '../components/MinhaLista.vue'
+import ProfileManagement from '../components/profile-management.vue' // ✅ ADICIONAR
 
 const routes = [
   {
-    path: "/login",
-    name: "Login",
-    component: LoginPage, // totalmente isolado
+    path: '/',
+    name: 'Home',
+    component: Main
   },
   {
-    path: "/",
-    name: "Home",
-    component: MetflixApp, // só aparece se usuário estiver logado
-    children: [
-      { path: "", component: HomeView },
-      { path: "minha-lista", component: MinhaLista },
-      { path: "profile-management", component: ProfileManagement },
-
-      // 🔥 Novas páginas na navbar:
-      { path: "series", name: "Series", component: SeriesPage },
-      { path: "filmes", name: "Filmes", component: FilmesPage },
-      { path: "bombando", name: "Bombando", component: BombandoPage },
-    ],
+    path: '/series',
+    name: 'Series',
+    component: SeriesPage
   },
-
-  // rota inválida → login
   {
-    path: "/:catchAll(.*)",
-    redirect: "/login",
+    path: '/filmes',
+    name: 'Filmes',
+    component: FilmesPage
   },
-];
+  {
+    path: '/bombando',
+    name: 'Bombando',
+    component: BombandoPage
+  },
+  {
+    path: '/minha-lista',
+    name: 'MinhaLista',
+    component: MinhaLista
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: SearchPage
+  },
+  // ✅ ROTA PROFILE MANAGEMENT (NOVA)
+  {
+    path: '/profile-management',
+    name: 'ProfileManagement',
+    component: ProfileManagement
+  },
+  {
+    path: '/faq',
+    name: 'FAQ',
+    component: FaqPage
+  },
+  {
+    path: '/help',
+    name: 'Help',
+    component: HelpPage
+  },
+  {
+    path: '/terms',
+    name: 'Terms',
+    component: TermsPage
+  },
+  {
+    path: '/privacy',
+    name: 'Privacy',
+    component: PrivacyPage
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
+  }
+]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
-});
+  linkActiveClass: 'router-link-active'
+})
 
-export default router;
+export default router
