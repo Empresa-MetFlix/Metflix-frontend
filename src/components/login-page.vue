@@ -153,10 +153,10 @@ const handleLogin = async () => {
 
     // Salvar email se "Lembre-se de mim" estiver marcado
     if (rememberMe.value) {
-      localStorage.setItem('metflix_saved_email', loginForm.value.email)
-    } else {
-      localStorage.removeItem('metflix_saved_email')
-    }
+  localStorage.setItem('metflix-saved-email', loginForm.value.email) // ✅ HÍFEN
+} else {
+  localStorage.removeItem('metflix-saved-email') // ✅ HÍFEN
+}
 
     // Emitir evento de sucesso para metflix-app
     emit('login-success')
@@ -177,7 +177,7 @@ const handleSignup = () => {
 
 // Carregar email salvo ao montar
 onMounted(() => {
-  const savedEmail = localStorage.getItem('metflix_saved_email')
+  const savedEmail = localStorage.getItem('metflix-saved-email') // ✅ HÍFEN
   if (savedEmail) {
     loginForm.value.email = savedEmail
     rememberMe.value = true

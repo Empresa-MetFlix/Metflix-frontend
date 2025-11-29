@@ -3,11 +3,12 @@
     <div v-if="isAuthenticated && activeProfile">
       <Navbar
         :profile="activeProfile"
+        :user="currentUser"
         @logout="handleLogout"
         @manage-profiles="openProfileManagement"
       />
 
-      <router-view />
+      <router-view :key="profileKey" />
 
       <footer class="footer">
         <div class="footer-content">
@@ -30,14 +31,12 @@
       @back="activeProfile = null"
     />
 
-    <!-- ✅ TELA DE CADASTRO -->
     <SignupPage 
       v-else-if="showSignup"
       @signup-success="handleSignupSuccess"
       @back-to-login="showSignup = false"
     />
 
-    <!-- ✅ TELA DE LOGIN -->
     <LoginPage 
       v-else
       @login-success="handleLoginSuccess"
@@ -47,9 +46,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from "vue"
+import { ref, onMounted, nextTick, computed } from "vue"
 import { useAuth } from "./stores/use-auth.js"
-import { useRouter } from "vue-router"
+import { useRouter, useRoute } from "vue-router"
 import Navbar from "./components/navbar.vue"
 import LoginPage from "./components/login-page.vue"
 import SignupPage from "./components/signup-page.vue"
@@ -57,14 +56,24 @@ import ProfileManagement from "./components/profile-management.vue"
 
 const authStore = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 const isAuthenticated = ref(false)
 const activeProfile = ref(null)
 const profileManagementRef = ref(null)
 const showSignup = ref(false)
 
+// ✅ User do authStore
+const currentUser = computed(() => authStore.user)
+
+// ✅ Key reativa
+const profileKey = computed(() => {
+  return activeProfile.value?.id ? `profile-${activeProfile.value.id}` : 'no-profile'
+})
+
 const checkAuth = () => {
-  const token = localStorage.getItem('metflix_auth_token')
+  const token = localStorage.getItem('metflix-auth-token')
+  console.log('🔍 Checando token:', token ? 'EXISTE' : 'NÃO EXISTE')
   isAuthenticated.value = !!token
   console.log('🔐 checkAuth:', isAuthenticated.value)
 }
@@ -73,14 +82,14 @@ onMounted(() => {
   console.log('📱 Metflix-app montado')
   checkAuth()
   
-  const saved = localStorage.getItem("metflix_active_profile")
+  const saved = localStorage.getItem("metflix-active-profile")
   if (saved && isAuthenticated.value) {
     try {
       activeProfile.value = JSON.parse(saved)
       console.log('✅ Perfil carregado do localStorage:', activeProfile.value)
     } catch (e) {
       console.error('❌ Erro ao carregar perfil:', e)
-      localStorage.removeItem("metflix_active_profile")
+      localStorage.removeItem("metflix-active-profile")
       activeProfile.value = null
     }
   }
@@ -88,22 +97,17 @@ onMounted(() => {
 
 const handleLoginSuccess = async () => {
   console.log('✅ Login success no metflix-app')
-  
-  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 150))
   checkAuth()
-  
-  localStorage.removeItem('metflix_active_profile')
+  localStorage.removeItem('metflix-active-profile')
   activeProfile.value = null
   showSignup.value = false
-  
   console.log('🎭 Mostrando tela de seleção de perfis')
 }
 
-// ✅ NOVO - Após cadastro bem-sucedido
 const handleSignupSuccess = () => {
   console.log('✅ Cadastro realizado com sucesso!')
   showSignup.value = false
-  // Usuário será redirecionado para login automaticamente
 }
 
 const handleProfileSelected = (profile) => {
@@ -113,37 +117,32 @@ const handleProfileSelected = (profile) => {
 const handleProfileConfirmed = async (profile) => {
   console.log("✅ Perfil confirmado:", profile.name)
   
-  localStorage.setItem('metflix_active_profile', JSON.stringify(profile))
+  // Salvar no localStorage
+  localStorage.setItem('metflix-active-profile', JSON.stringify(profile))
+  
+  // Atualizar activeProfile
   activeProfile.value = profile
   
+  // ✅ SEMPRE recarregar a página quando confirmar perfil
+  console.log('🔄 Recarregando página com novo perfil')
   await nextTick()
-  router.push('/')
+  window.location.href = '/' // ✅ Forçar navegação + reload
 }
 
 const openProfileManagement = () => {
-  console.log('🔄 Abrindo gerenciamento de perfis')
+  console.log('🔄 Abrindo tela de seleção de perfis')
   activeProfile.value = null
-  
-  nextTick(() => {
-    if (profileManagementRef.value) {
-      profileManagementRef.value.activateManageMode()
-    }
-  })
 }
 
 const handleLogout = () => {
   console.log('🚪 Fazendo logout')
-  
-  localStorage.removeItem("metflix_active_profile")
-  localStorage.removeItem("metflix_auth_token")
-  localStorage.removeItem("metflix_refresh_token")
-  
+  localStorage.removeItem("metflix-active-profile")
+  localStorage.removeItem("metflix-auth-token")
+  localStorage.removeItem("metflix-refresh-token")
   activeProfile.value = null
   isAuthenticated.value = false
   showSignup.value = false
-  
   authStore.logout()
-  
   router.push('/')
 }
 </script>

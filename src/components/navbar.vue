@@ -109,13 +109,11 @@
               </div>
             </div>
             
-            <!-- Loading -->
             <div v-if="notificationsLoading" class="notifications-loading">
               <div class="mini-spinner"></div>
               Carregando...
             </div>
             
-            <!-- Lista de Notificações -->
             <div v-else-if="notifications.length > 0" class="notifications-list">
               <div 
                 v-for="notif in notifications" 
@@ -143,7 +141,6 @@
               </div>
             </div>
             
-            <!-- Empty State -->
             <div v-else class="notifications-empty">
               <div class="empty-icon">🔔</div>
               <p>Sem notificações</p>
@@ -187,7 +184,6 @@
                 <HelpCircle class="navbar-option-icon" />
                 Ajuda
               </li>
-              <!-- ✅ NOVO - BOTÃO EXCLUIR CONTA -->
               <li class="navbar-profile-option navbar-profile-danger" @click="openDeleteModal">
                 <Trash2 class="navbar-option-icon" />
                 Excluir Conta
@@ -202,7 +198,6 @@
       </div>
     </nav>
 
-    <!-- ✅ MODAL DE EXCLUSÃO DE CONTA -->
     <DeleteAccountModal
       :is-open="showDeleteModal"
       @close="showDeleteModal = false"
@@ -215,17 +210,24 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Search, Bell, User, HelpCircle, LogOut, Trash2 } from 'lucide-vue-next'
-import { useAuth } from '../stores/use-auth.js'
 import { useMovies } from '../composables/use-movies.js'
 import { useNotifications } from '../composables/use-notifications.js'
 import DeleteAccountModal from './delete-account-modal.vue'
 
 const router = useRouter()
 const route = useRoute()
-const authStore = useAuth()
 const moviesStore = useMovies()
 
-// ✅ NOTIFICAÇÕES (REAL)
+// ✅ RECEBER PROPS DO PAI
+const props = defineProps({
+  profile: Object,
+  user: Object
+})
+
+// ✅ EMITS
+const emit = defineEmits(['logout', 'manage-profiles'])
+
+// ✅ NOTIFICAÇÕES
 const {
   notifications,
   loading: notificationsLoading,
@@ -239,21 +241,9 @@ const {
   formatTimeAgo,
 } = useNotifications()
 
-// PERFIL E USUÁRIO
-const currentProfile = computed(() => {
-  const profileData = localStorage.getItem('metflix_active_profile')
-  if (profileData) {
-    try {
-      return JSON.parse(profileData)
-    } catch (e) {
-      console.error('Erro ao carregar perfil:', e)
-      return null
-    }
-  }
-  return null
-})
-
-const currentUser = computed(() => authStore.user)
+// ✅ USAR PROPS AO INVÉS DE LOCALSTORAGE
+const currentProfile = computed(() => props.profile)
+const currentUser = computed(() => props.user)
 
 // BUSCA
 const searchActive = ref(false)
@@ -335,12 +325,10 @@ const toggleNotifications = async () => {
 }
 
 const handleNotificationClick = async (notification) => {
-  // Marcar como lida
   if (!notification.read) {
     await markAsRead(notification.id)
   }
   
-  // Navegar se tiver link
   if (notification.link) {
     router.push(notification.link)
     showNotifications.value = false
@@ -371,7 +359,7 @@ const getNotificationIcon = (type) => {
 // PERFIL
 const isScrolled = ref(false)
 const showProfileMenu = ref(false)
-const showDeleteModal = ref(false) // ✅ NOVO
+const showDeleteModal = ref(false)
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 0
@@ -383,7 +371,7 @@ const toggleProfileMenu = () => {
 
 const goToProfiles = () => {
   showProfileMenu.value = false
-  router.push({ name: 'ProfileManagement' })
+  emit('manage-profiles') // ✅ EMITIR EVENTO AO INVÉS DE NAVEGAR
 }
 
 const goToHelp = () => {
@@ -391,43 +379,28 @@ const goToHelp = () => {
   router.push({ name: 'Help' })
 }
 
-// ✅ NOVO - ABRIR MODAL DE EXCLUSÃO
 const openDeleteModal = () => {
   showProfileMenu.value = false
   showDeleteModal.value = true
 }
 
-// ✅ NOVO - APÓS EXCLUSÃO DA CONTA
 const handleAccountDeleted = () => {
   console.log('🗑️ Conta excluída, fazendo logout...')
   handleLogout()
 }
 
-const handleLogout = async () => {
-  console.log('🚪 Iniciando logout...')
-  
+const handleLogout = () => {
+  console.log('🚪 Navbar emitindo logout...')
   showProfileMenu.value = false
-  
-  // Parar polling de notificações
   stopPolling()
-  
-  // Limpar tudo
-  localStorage.clear()
-  sessionStorage.clear()
-  
-  authStore.user = null
-  authStore.isAuthenticated = false
-  
-  await new Promise(resolve => setTimeout(resolve, 100))
-  
-  window.location.href = '/'
+  emit('logout') // ✅ EMITIR EVENTO AO INVÉS DE FAZER LOGOUT DIRETAMENTE
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   
-  // ✅ Iniciar polling de notificações a cada 30 segundos
-  if (authStore.isAuthenticated) {
+  // Iniciar polling de notificações
+  if (props.user) {
     startPolling(30000)
   }
 })

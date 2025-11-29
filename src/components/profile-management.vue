@@ -208,6 +208,7 @@
 <script setup>
 import { ref, reactive, onMounted } from "vue";
 import { Edit, Plus, Trash2, Camera } from "lucide-vue-next";
+import api from "@/api/services/api.js";
 
 const emit = defineEmits(["profile-confirmed"]);
 
@@ -226,30 +227,13 @@ const profileForm = reactive({
   autoplay: true,
 });
 
-// ✅ BUSCAR PERFIS DO BACKEND
 const loadProfilesFromBackend = async () => {
   try {
-    const token = localStorage.getItem('metflix_auth_token')
-    if (!token) {
-      console.error('❌ Token não encontrado')
-      profiles.value = []
-      return
-    }
+    const response = await api.get('profiles/')
     
-    const response = await fetch('http://localhost:8000/api/profiles/', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
+    console.log('📋 Perfis carregados do backend:', response.data)
     
-    if (!response.ok) {
-      throw new Error('Erro ao buscar perfis')
-    }
-    
-    const backendProfiles = await response.json()
-    console.log('📋 Perfis carregados do backend:', backendProfiles)
-    
-    profiles.value = backendProfiles
+    profiles.value = response.data
     
     // Se não tem perfis, forçar criação do primeiro
     if (profiles.value.length === 0) {
@@ -265,12 +249,11 @@ const loadProfilesFromBackend = async () => {
     profiles.value = []
   }
 }
-
 // ✅ CLICAR NO PERFIL JÁ SELECIONA E ENTRA (Netflix Style)
 const selectAndConfirm = (profile) => {
   console.log('🎭 Perfil selecionado:', profile.name)
   selectedProfile.value = profile
-  localStorage.setItem('metflix_active_profile', JSON.stringify(profile))
+  localStorage.setItem('metflix-active-profile', JSON.stringify(profile))
   emit("profile-confirmed", profile)
 }
 
@@ -287,7 +270,7 @@ const editProfile = (profile) => {
 
 const createProfile = () => {
   creatingProfile.value = true
-  managingProfiles.value = false // ✅ Sair do modo gerenciamento
+  managingProfiles.value = false
   profileForm.name = ""
   profileForm.avatar = availableAvatars.value[0].url
   profileForm.isKids = false
@@ -299,39 +282,25 @@ const saveProfile = async () => {
   if (!profileForm.name.trim()) return
 
   try {
-    const token = localStorage.getItem('metflix_auth_token')
-    
     if (editingProfile.value) {
       // EDITAR PERFIL EXISTENTE
-      const response = await fetch(`http://localhost:8000/api/profiles/${editingProfile.value.id}/`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: profileForm.name,
-          avatar: profileForm.avatar,
-          is_kids: profileForm.isKids,
-          autoplay: profileForm.autoplay
-        })
+      const response = await api.put(`profiles/${editingProfile.value.id}/`, {
+        name: profileForm.name,
+        avatar: profileForm.avatar,
+        is_kids: profileForm.isKids,
+        autoplay: profileForm.autoplay
       })
       
-      if (!response.ok) {
-        throw new Error('Erro ao atualizar perfil')
-      }
-      
-      const updatedProfile = await response.json()
-      console.log('✅ Perfil atualizado:', updatedProfile)
+      console.log('✅ Perfil atualizado:', response.data)
       
       // Atualizar na lista local
       const index = profiles.value.findIndex(p => p.id === editingProfile.value.id)
-      profiles.value[index] = updatedProfile
+      profiles.value[index] = response.data
       
       // Se era o perfil ativo, atualizar localStorage
-      const activeProfile = JSON.parse(localStorage.getItem('metflix_active_profile') || '{}')
-      if (activeProfile.id === updatedProfile.id) {
-        localStorage.setItem('metflix_active_profile', JSON.stringify(updatedProfile))
+      const activeProfile = JSON.parse(localStorage.getItem('metflix-active-profile') || '{}')
+      if (activeProfile.id === response.data.id) {
+        localStorage.setItem('metflix-active-profile', JSON.stringify(response.data))
       }
       
       cancelEdit()
@@ -339,33 +308,21 @@ const saveProfile = async () => {
       
     } else {
       // CRIAR NOVO PERFIL
-      const response = await fetch('http://localhost:8000/api/profiles/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: profileForm.name,
-          avatar: profileForm.avatar,
-          is_kids: profileForm.isKids,
-          autoplay: profileForm.autoplay
-        })
+      const response = await api.post('profiles/', {
+        name: profileForm.name,
+        avatar: profileForm.avatar,
+        is_kids: profileForm.isKids,
+        autoplay: profileForm.autoplay
       })
       
-      if (!response.ok) {
-        throw new Error('Erro ao criar perfil')
-      }
+      console.log('✅ Perfil criado:', response.data)
       
-      const newProfile = await response.json()
-      console.log('✅ Perfil criado:', newProfile)
-      
-      profiles.value.push(newProfile)
+      profiles.value.push(response.data)
       
       // Se é o primeiro perfil, seleciona e vai pra home
       if (profiles.value.length === 1) {
-        selectedProfile.value = newProfile
-        localStorage.setItem('metflix_active_profile', JSON.stringify(newProfile))
+        selectedProfile.value = response.data
+        localStorage.setItem('metflix-active-profile', JSON.stringify(response.data))
         cancelEdit()
         emit("profile-confirmed", selectedProfile.value)
         return
@@ -393,30 +350,20 @@ const deleteProfile = async (id) => {
   }
 
   try {
-    const token = localStorage.getItem('metflix_auth_token')
-    const response = await fetch(`http://localhost:8000/api/profiles/${id}/`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error('Erro ao deletar perfil')
-    }
+    await api.delete(`profiles/${id}/`)
     
     console.log('✅ Perfil deletado')
     
     profiles.value = profiles.value.filter((p) => p.id !== id)
     
     // Se deletou o perfil ativo, selecionar outro
-    const activeProfile = JSON.parse(localStorage.getItem('metflix_active_profile') || '{}')
+    const activeProfile = JSON.parse(localStorage.getItem('metflix-active-profile') || '{}')
     if (activeProfile.id === id) {
       if (profiles.value.length > 0) {
         selectedProfile.value = profiles.value[0]
-        localStorage.setItem('metflix_active_profile', JSON.stringify(selectedProfile.value))
+        localStorage.setItem('metflix-active-profile', JSON.stringify(selectedProfile.value))
       } else {
-        localStorage.removeItem('metflix_active_profile')
+        localStorage.removeItem('metflix-active-profile')
       }
     }
     
@@ -432,8 +379,6 @@ const deleteProfile = async (id) => {
 const cancelEdit = () => {
   editingProfile.value = null
   creatingProfile.value = false
-  
-  // ✅ Não volta automaticamente pro gerenciamento se não estava lá
 }
 
 const manageProfiles = () => {
@@ -457,7 +402,7 @@ const exitManageMode = () => {
   creatingProfile.value = false
   
   // ✅ Pegar perfil ativo e confirmar
-  const activeProfile = localStorage.getItem('metflix_active_profile')
+  const activeProfile = localStorage.getItem('metflix-active-profile')
   if (activeProfile) {
     const profile = JSON.parse(activeProfile)
     console.log('📤 Saindo do gerenciamento, voltando para home com perfil:', profile.name)
@@ -508,7 +453,7 @@ defineExpose({
   min-height: 100vh;
   position: relative;
   color: #fff;
-  font-family: "Roboto", sans-serif;
+  font-family: "Netflix Sans", "Helvetica Neue", Arial, sans-serif;
 }
 
 .profile-management-background {
@@ -517,7 +462,8 @@ defineExpose({
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #141414 0%, #000 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.9) 100%), 
+              radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000 100%);
   z-index: -1;
 }
 
@@ -527,13 +473,14 @@ defineExpose({
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .profile-management-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding-top: 80px; /* ✅ Espaço para a navbar */
 }
 
 .profile-management-content {
@@ -541,7 +488,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 4%;
+  padding: 4rem 4% 3rem; /* ✅ Mais padding-top */
 }
 
 .profile-selection,
@@ -550,21 +497,34 @@ defineExpose({
   text-align: center;
   max-width: 1200px;
   width: 100%;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .profile-title {
   font-size: 3.5rem;
   font-weight: 400;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem; /* ✅ Espaçamento ajustado */
   color: #fff;
+  letter-spacing: -0.5px;
 }
 
 .profiles-grid {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 1.5rem;
-  margin-bottom: 3rem;
+  gap: 2rem;
+  margin-bottom: 4rem;
   flex-wrap: wrap;
   max-width: 100%;
 }
@@ -574,46 +534,31 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transition: transform 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   flex-shrink: 0;
 }
 
 .profile-card:hover {
-  transform: scale(1.05);
-}
-
-.profile-card.profile-selected {
-  transform: scale(1.1);
-}
-
-.profile-manage {
-  cursor: pointer !important;
-}
-
-.profile-manage .profile-avatar {
-  cursor: pointer !important;
+  transform: scale(1.08);
 }
 
 .profile-avatar {
   position: relative;
   width: 180px;
   height: 180px;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
-  margin-bottom: 0.8rem;
+  margin-bottom: 1rem;
   background-color: #333;
-  border: 3px solid transparent;
+  border: 4px solid transparent;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .profile-card:hover .profile-avatar {
-  border-color: #fff;
-}
-
-.profile-card.profile-selected .profile-avatar {
-  border: 3px solid #e50914;
-  box-shadow: 0 0 20px rgba(229, 9, 20, 0.5);
+  border-color: #e5e5e5;
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
 }
 
 .profile-avatar img {
@@ -626,126 +571,73 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #333;
-  border: 2px dashed #666;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  border: 3px dashed rgba(255, 255, 255, 0.3);
 }
 
 .profile-add-icon {
-  width: 3rem;
-  height: 3rem;
-  color: #666;
+  width: 4rem;
+  height: 4rem;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
 }
 
-.profile-edit-overlay,
+.profile-card:hover .profile-add-icon {
+  color: rgba(255, 255, 255, 0.9);
+  transform: rotate(90deg);
+}
+
 .profile-manage-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
   opacity: 0;
   transition: opacity 0.3s ease;
+  border-radius: 8px;
 }
 
-.profile-card:hover .profile-edit-overlay,
 .profile-card:hover .profile-manage-overlay {
   opacity: 1;
 }
 
-.profile-selected-indicator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #e50914;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
-.profile-check-icon {
-  width: 24px;
-  height: 24px;
-  color: #fff;
-}
-
-.profile-edit-icon,
 .profile-manage-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
   color: #fff;
-  cursor: pointer;
-  padding: 0.5rem;
+  background: rgba(229, 9, 20, 0.9);
+  padding: 0.7rem;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.profile-card:hover .profile-manage-icon {
+  transform: scale(1.1);
 }
 
 .profile-name {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   color: #808080;
-  margin-bottom: 0.5rem;
   transition: color 0.3s ease;
   font-weight: 400;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
 
 .profile-card:hover .profile-name {
   color: #fff;
 }
 
-.profile-card.profile-selected .profile-name {
-  color: #e50914;
-  font-weight: 600;
-}
-
-.profile-main-badge {
-  font-size: 0.8rem;
-  color: #e50914;
-  background: rgba(229, 9, 20, 0.2);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-}
-
-.profile-card-delete-btn {
-  margin-top: 0.5rem;
-  background: rgba(229, 9, 20, 0.2);
-  border: 1px solid #e50914;
-  color: #e50914;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-}
-
-.profile-card-delete-btn:hover {
-  background: #e50914;
-  color: #fff;
-}
-
-.profile-card-delete-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
 .profile-actions {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   justify-content: center;
   flex-wrap: wrap;
+  margin-top: 2rem;
 }
 
 .profile-manage-btn,
@@ -753,29 +645,48 @@ defineExpose({
 .profile-save-btn,
 .profile-cancel-btn,
 .profile-delete-btn {
-  padding: 0.75rem 2rem;
-  border: 2px solid #fff;
+  padding: 1rem 3rem;
+  border: 2px solid rgba(255, 255, 255, 0.7);
   background: transparent;
   color: #fff;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  border-radius: 4px;
+  min-width: 180px;
+}
+
+.profile-manage-btn:hover,
+.profile-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
+  transform: translateY(-2px);
 }
 
 .profile-done-btn,
 .profile-save-btn {
   background: #e50914;
   border-color: #e50914;
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
+}
+
+.profile-done-btn:hover:not(:disabled),
+.profile-save-btn:hover:not(:disabled) {
+  background: #f40612;
+  box-shadow: 0 6px 20px rgba(229, 9, 20, 0.5);
+  transform: translateY(-2px);
 }
 
 .profile-done-btn:disabled,
 .profile-save-btn:disabled {
-  background: #666;
-  border-color: #666;
+  background: #555;
+  border-color: #555;
   cursor: not-allowed;
   opacity: 0.5;
+  box-shadow: none;
 }
 
 .profile-delete-btn {
@@ -783,41 +694,47 @@ defineExpose({
   color: #e50914;
 }
 
-.profile-manage-btn:hover,
-.profile-cancel-btn:hover {
-  background: #fff;
-  color: #000;
-}
-
-.profile-done-btn:hover:not(:disabled),
-.profile-save-btn:hover:not(:disabled) {
-  background: #f40612;
-}
-
 .profile-delete-btn:hover {
   background: #e50914;
   color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
 }
 
+/* SEÇÃO DE EDIÇÃO/CRIAÇÃO - MELHORADA */
 .profile-edit-form {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2rem;
   margin-bottom: 3rem;
+  padding: 2.5rem;
+  background: rgba(20, 20, 20, 0.6);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 650px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.profile-edit-avatar-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
 }
 
 .profile-edit-avatar {
   position: relative;
-  width: 180px;
-  height: 180px;
-  border-radius: 8px;
+  width: 200px;
+  height: 200px;
+  border-radius: 12px;
   overflow: hidden;
-  margin: 0 auto 1.5rem;
-  border: 3px solid #e50914;
-  box-shadow: 0 8px 25px rgba(229, 9, 20, 0.3);
-  transition: all 0.3s ease;
-  background-color: transparent;
+  border: 4px solid #e50914;
+  box-shadow: 0 12px 40px rgba(229, 9, 20, 0.4);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, #1a1a1a 0%, #000 100%);
 }
 
 .profile-edit-avatar img {
@@ -825,172 +742,280 @@ defineExpose({
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s ease;
 }
 
 .profile-edit-avatar:hover {
-  transform: scale(1.05);
-  box-shadow: 0 12px 35px rgba(229, 9, 20, 0.5);
+  transform: scale(1.05) rotate(2deg);
+  box-shadow: 0 16px 50px rgba(229, 9, 20, 0.6);
+}
+
+.profile-edit-avatar:hover img {
+  transform: scale(1.1);
 }
 
 .profile-change-avatar {
   position: absolute;
-  bottom: -5px;
-  right: -5px;
-  background: #e50914;
-  border: 3px solid #141414;
+  bottom: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+  border: 4px solid #000;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+  z-index: 10;
 }
 
 .profile-change-avatar:hover {
-  background: #f40612;
-  transform: scale(1.1);
+  background: linear-gradient(135deg, #f40612 0%, #e50914 100%);
+  transform: scale(1.15) rotate(10deg);
+  box-shadow: 0 6px 24px rgba(229, 9, 20, 0.6);
 }
 
 .profile-camera-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 1.5rem;
+  height: 1.5rem;
   color: #fff;
 }
 
 .profile-edit-fields {
   width: 100%;
-  max-width: 400px;
+  max-width: 550px;
 }
 
 .profile-field {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
   text-align: left;
 }
 
 .profile-field label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #e5e5e5;
+  letter-spacing: 0.5px;
 }
 
 .profile-input {
   width: 100%;
-  padding: 0.75rem;
-  background: #333;
-  border: 1px solid #555;
-  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
   color: #fff;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.profile-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .profile-input:focus {
   outline: none;
   border-color: #e50914;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.2);
+  transform: translateY(-1px);
 }
 
+/* ✅ CHECKBOXES MODERNOS - ESTILO CARTÃO */
 .profile-settings {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
+  padding: 0.5rem 0;
 }
 
 .profile-checkbox {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
   cursor: pointer;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
 }
 
-.profile-checkbox input {
-  width: 1rem;
-  height: 1rem;
+.profile-checkbox::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(229, 9, 20, 0.1), transparent);
+  transition: left 0.5s ease;
 }
 
+.profile-checkbox:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-color: rgba(229, 9, 20, 0.4);
+  transform: translateX(5px);
+  box-shadow: 0 4px 16px rgba(229, 9, 20, 0.2);
+}
+
+.profile-checkbox:hover::before {
+  left: 100%;
+}
+
+.profile-checkbox-text {
+  font-size: 1.05rem;
+  color: #e5e5e5;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  flex: 1;
+  text-align: left;
+}
+
+/* ✅ CHECKBOX CUSTOMIZADO TIPO SWITCH */
+.profile-checkbox input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 52px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.profile-checkbox input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px;
+  left: 2px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.profile-checkbox input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+  border-color: #e50914;
+  box-shadow: 0 0 12px rgba(229, 9, 20, 0.5);
+}
+
+.profile-checkbox input[type="checkbox"]:checked::before {
+  left: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.profile-checkbox input[type="checkbox"]:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.profile-checkbox input[type="checkbox"]:checked:hover {
+  background: linear-gradient(135deg, #f40612 0%, #e50914 100%);
+}
+
+/* SELETOR DE AVATAR - MELHORADO */
 .avatar-selector-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  backdrop-filter: blur(5px);
 }
 
 .avatar-selector {
-  background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
-  border-radius: 12px;
-  padding: 2.5rem;
-  max-width: 750px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+  border-radius: 16px;
+  padding: 3rem;
+  max-width: 800px;
   width: 95%;
-  max-height: 85vh;
+  max-height: 90vh;
   overflow-y: auto;
-  border: 1px solid rgba(229, 9, 20, 0.3);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+  border: 2px solid rgba(229, 9, 20, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .avatar-selector h3 {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   text-align: center;
-  font-size: 1.8rem;
+  font-size: 2rem;
   font-weight: 400;
   color: #fff;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
 }
 
 .avatar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
   padding: 0.5rem;
 }
 
 .avatar-option {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 3px solid transparent;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   position: relative;
 }
 
-.avatar-option::before {
+.avatar-option::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(229, 9, 20, 0);
-  transition: all 0.3s ease;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(229, 9, 20, 0.2) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
   pointer-events: none;
-  z-index: 1;
 }
 
 .avatar-option:hover {
-  transform: scale(1.15);
+  transform: scale(1.12) rotate(3deg);
   border-color: #e50914;
-  box-shadow: 0 8px 20px rgba(229, 9, 20, 0.4);
+  box-shadow: 0 12px 32px rgba(229, 9, 20, 0.5);
   z-index: 10;
 }
 
-.avatar-option:hover::before {
-  background: rgba(229, 9, 20, 0.2);
+.avatar-option:hover::after {
+  opacity: 1;
 }
 
 .avatar-option img {
@@ -998,114 +1023,120 @@ defineExpose({
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.3s ease;
+}
+
+.avatar-option:hover img {
+  transform: scale(1.1);
 }
 
 .avatar-close-btn {
   width: 100%;
-  padding: 1rem;
-  background: #e50914;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #fff;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.avatar-close-btn:hover {
-  background: #f40612;
-  transform: translateY(-2px);
+  letter-spacing: 2px;
   box-shadow: 0 6px 20px rgba(229, 9, 20, 0.4);
 }
 
+.avatar-close-btn:hover {
+  background: linear-gradient(135deg, #f40612 0%, #e50914 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(229, 9, 20, 0.6);
+}
+
 .avatar-selector::-webkit-scrollbar {
-  width: 10px;
+  width: 12px;
 }
 
 .avatar-selector::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
+  margin: 10px 0;
 }
 
 .avatar-selector::-webkit-scrollbar-thumb {
-  background: #e50914;
+  background: linear-gradient(180deg, #e50914 0%, #b20710 100%);
   border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .avatar-selector::-webkit-scrollbar-thumb:hover {
-  background: #f40612;
+  background: linear-gradient(180deg, #f40612 0%, #e50914 100%);
+  background-clip: padding-box;
 }
 
-.profile-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 0.75rem;
-  min-height: 40px;
-  align-items: center;
-}
-
-.profile-main-badge,
-.profile-kids-badge {
-  font-size: 0.8rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-.profile-main-badge {
-  color: #e50914;
-  background: rgba(229, 9, 20, 0.2);
-  border: 1px solid #e50914;
-}
-
-.profile-kids-badge {
-  color: #46d369;
-  background: rgba(70, 211, 105, 0.2);
-  border: 1px solid #46d369;
-}
-
-.profile-manage .profile-card {
-  min-height: 280px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.profile-spacer {
-  height: 44px;
-}
-
-.profile-delete-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: rgba(229, 9, 20, 0.1);
-  border: 2px solid #e50914;
-  color: #e50914;
-  border-radius: 6px;
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  width: 100%;
-  max-width: 120px;
-  margin-top: 0.5rem;
-}
-
-.profile-delete-button:hover {
-  background: #e50914;
-  color: #fff;
-  transform: translateY(-1px);
-}
-
-.profile-delete-icon {
-  width: 0.9rem;
-  height: 0.9rem;
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .profile-management-content {
+    padding: 2rem 4% 2rem;
+  }
+  
+  .profile-title {
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .profile-avatar {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .profile-edit-avatar {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .profile-edit-form {
+    padding: 1.5rem;
+  }
+  
+  .avatar-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 1rem;
+  }
+  
+  .profile-actions {
+    flex-direction: column;
+  }
+  
+  .profile-manage-btn,
+  .profile-done-btn,
+  .profile-save-btn,
+  .profile-cancel-btn,
+  .profile-delete-btn {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .profile-checkbox {
+    padding: 1rem 1.25rem;
+  }
+  
+  .profile-checkbox-text {
+    font-size: 0.95rem;
+  }
+  
+  .profile-checkbox input[type="checkbox"] {
+    width: 48px;
+    height: 26px;
+  }
+  
+  .profile-checkbox input[type="checkbox"]::before {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .profile-checkbox input[type="checkbox"]:checked::before {
+    left: 22px;
+  }
 }
 </style>

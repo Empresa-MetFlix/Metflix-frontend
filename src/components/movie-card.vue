@@ -97,11 +97,14 @@ const handleImageError = (event) => {
 
 const handleToggleFavorite = async () => {
   try {
-    await toggleFavorite(props.movie)
+    await toggleFavorite(props.movie.id, props.movie.mediaType) // ✅ CORRIGIDO
   } catch (error) {
     console.error('Erro ao alternar favorito:', error)
   }
 }
+
+
+
 </script>
 
 <style scoped>

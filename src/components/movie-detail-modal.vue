@@ -190,11 +190,14 @@ const closeModal = () => {
 
 const handleToggleFavorite = async () => {
   try {
-    await toggleFavorite(props.movie)
+    await toggleFavorite(props.movie.id, props.movie.mediaType) // ✅ CORRIGIDO
   } catch (error) {
     console.error('Erro ao alternar favorito:', error)
   }
 }
+
+
+
 
 const watchTrailer = () => {
   if (props.movie.trailer) {

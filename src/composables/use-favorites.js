@@ -51,44 +51,54 @@ export function useFavorites() {
   }
 
   // ✅ USA A ROTA /toggle/ DO BACKEND
-  const toggleFavorite = async (movie) => {
-    try {
-      console.log('🔄 Toggle favorito:', movie.title || movie.name)
-      
-      const response = await api.post('/favorites/toggle/', {
-        media_id: movie.id.toString(),
-        title: movie.title || movie.name || 'Conteúdo',
-        media_type: movie.media_type || (movie.title ? 'filme' : 'série')
-      })
-      
-      if (response.data.action === 'added') {
-        // ✅ ADICIONAR AO ARRAY LOCAL
-        favorites.value.unshift({
-          id: response.data.favorite.id,
-          media_id: movie.id.toString(),
-          addedAt: response.data.favorite.created_at,
-          ...movie
-        })
-        console.log('✅ Favorito adicionado via toggle, email enviado')
-        
-        // ✅ ADICIONAR - Recarregar notificações após 500ms
-        setTimeout(() => {
-          console.log('🔔 Recarregando notificações...')
-          loadNotifications()
-        }, 500)
-        
-        return true
+ const toggleFavorite = async (movieData, mediaType = 'movie') => {
+  // ✅ Aceitar tanto o ID quanto o objeto inteiro
+  const movieId = typeof movieData === 'object' ? movieData.id : movieData
+  const type = typeof movieData === 'object' ? (movieData.mediaType || mediaType) : mediaType
+  
+  console.log('🔄 Toggle favorito - ID:', movieId, 'Type:', type)
+  
+  try {
+    const response = await api.post('/favorites/toggle/', {
+      media_id: movieId,  // ✅ MUDAR DE movie_id para media_id
+      media_type: type
+    })
+    
+    if (response.data.action === 'removed') {
+      console.log('✅ Favorito removido via toggle')
+      favorites.value = favorites.value.filter(fav => fav.id !== movieId)
+    } else {
+      console.log('✅ Favorito adicionado via toggle')
+      // Se não tiver o filme completo na resposta, fazer busca
+      if (!response.data.movie) {
+        await loadFavorites()
       } else {
-        // ✅ REMOVER DO ARRAY LOCAL
-        favorites.value = favorites.value.filter(f => f.media_id !== movie.id.toString())
-        console.log('✅ Favorito removido via toggle')
-        return false
+        favorites.value.push(response.data.movie)
       }
-    } catch (error) {
-      console.error('Erro ao toggle favorito:', error)
-      throw error
     }
+    
+    return response.data
+  } catch (error) {
+    console.error('❌ Erro ao toggle favorito:', error)
+    console.error('❌ Detalhes:', error.response?.data) // Ver o que o backend está respondendo
+    
+    // ✅ Mensagem mais amigável
+    if (error.response?.status === 400) {
+      console.error('❌ Dados enviados:', { media_id: movieId, media_type: type })
+      alert('Erro ao processar favorito. Dados inválidos.')
+    } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      alert('Erro de conexão com o servidor. Por favor, tente novamente mais tarde.')
+    } else if (error.response?.status === 500) {
+      alert('Erro no servidor. Por favor, tente novamente mais tarde.')
+    } else {
+      alert('Erro ao adicionar/remover favorito. Tente novamente.')
+    }
+    
+    throw error
   }
+}
+
+
 
   // ✅ MANTIDO PARA COMPATIBILIDADE (mas não é mais usado)
   const addFavorite = async (movie) => {

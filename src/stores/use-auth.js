@@ -3,17 +3,17 @@ import { ref } from 'vue'
 import api from '@/api/services/api'
 
 export const useAuth = defineStore('auth', () => {
-  const user = ref(null)
-  const token = ref(localStorage.getItem('metflix_auth_token'))
-  const refreshToken = ref(localStorage.getItem('metflix_refresh_token'))
+  const savedUser = localStorage.getItem('metflix-user')
+  
+  const user = ref(savedUser ? JSON.parse(savedUser) : null)
+  const token = ref(localStorage.getItem('metflix-auth-token'))
+  const refreshToken = ref(localStorage.getItem('metflix-refresh-token'))
   const isAuthenticated = ref(!!token.value)
-
-  // Configurar token padrão do axios
+  
   if (token.value) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
   }
 
-  // ✅ LOGIN - EXATAMENTE COMO ERA
   const login = async (credentials) => {
     try {
       console.log('🔐 Tentando login com:', { email: credentials.email })
@@ -22,24 +22,26 @@ export const useAuth = defineStore('auth', () => {
         email: credentials.email,
         password: credentials.password
       })
-
+      
       console.log('✅ Login bem-sucedido:', response.data)
-
+      
       if (response.data) {
         const { access, refresh, user: userData } = response.data
-
-        // Salvar tokens
+        
         token.value = access
         refreshToken.value = refresh
         user.value = userData
         isAuthenticated.value = true
-
-        localStorage.setItem('metflix_auth_token', access)
-        localStorage.setItem('metflix_refresh_token', refresh)
-
-        // Configurar header Authorization
+        
+        localStorage.setItem('metflix-auth-token', access)
+        localStorage.setItem('metflix-refresh-token', refresh)
+        localStorage.setItem('metflix-user', JSON.stringify(userData))
+        
+        console.log('✅ Token salvo:', localStorage.getItem('metflix-auth-token') ? 'SIM' : 'NÃO')
+        console.log('✅ User salvo:', localStorage.getItem('metflix-user') ? 'SIM' : 'NÃO')
+        
         api.defaults.headers.common['Authorization'] = `Bearer ${access}`
-
+        
         return userData
       }
     } catch (error) {
@@ -50,7 +52,6 @@ export const useAuth = defineStore('auth', () => {
         throw new Error(error.response.data.detail)
       } else if (error.response) {
         const { status } = error.response
-        
         if (status === 400 || status === 401) {
           throw new Error('Email ou senha incorretos.')
         }
@@ -60,71 +61,67 @@ export const useAuth = defineStore('auth', () => {
     }
   }
 
-  // ✅ REGISTER - EXATAMENTE COMO ERA
-  const register = async (userData) => {
+  // ✅ RENOMEADO: register -> signup (para compatibilidade)
+  const signup = async (userData) => {
     try {
-      console.log('📝 Tentando registrar:', { email: userData.email, name: userData.name })
+      console.log('🔐 Tentando registrar:', { email: userData.email, name: userData.name })
       
-      const response = await api.post('/register/', {
+      const response = await api.post('/users/', {  // ✅ MUDEI /register/ para /users/
         email: userData.email,
         password: userData.password,
         name: userData.name
       })
-
+      
       console.log('✅ Usuário criado:', response.data)
-
-      if (response.data) {
-        // Após registrar, fazer login automaticamente
-        return await login({
-          email: userData.email,
-          password: userData.password
-        })
-      }
+      
+      // ✅ RETORNAR OS DADOS SEM FAZER LOGIN AUTOMÁTICO
+      return response.data
     } catch (error) {
       console.error('❌ Erro no cadastro:', error)
       console.error('Detalhes:', error.response?.data)
       
-      if (error.response?.data?.detail) {
-        throw new Error(error.response.data.detail)
+      if (error.response?.data) {
+        const errors = error.response.data
+        if (errors.email) {
+          throw new Error(errors.email[0])
+        }
+        if (errors.password) {
+          throw new Error(errors.password[0])
+        }
+        throw new Error('Erro ao criar conta. Verifique os dados.')
       }
       
       throw new Error('Erro ao criar conta. Tente novamente.')
     }
   }
 
-  // ✅ LOGOUT - CORRIGIDO E FUNCIONANDO
   const logout = () => {
     console.log('🚪 Saindo da Metflix...')
     
-    // Resetar estados
     user.value = null
     token.value = null
     refreshToken.value = null
     isAuthenticated.value = false
-
-    // Limpar storage
+    
     localStorage.clear()
     sessionStorage.clear()
     
-    // Remover Authorization header
     delete api.defaults.headers.common['Authorization']
     
-    // FORÇAR RELOAD TOTAL
     setTimeout(() => {
       window.location.href = '/'
     }, 100)
   }
 
-  // ✅ REFRESH TOKEN
   const refreshAccessToken = async () => {
     try {
       const response = await api.post('/token/refresh/', {
         refresh: refreshToken.value
       })
-
+      
       if (response.data?.access) {
         token.value = response.data.access
-        localStorage.setItem('metflix_auth_token', response.data.access)
+        localStorage.setItem('metflix-auth-token', response.data.access)
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`
         return response.data.access
       }
@@ -135,13 +132,12 @@ export const useAuth = defineStore('auth', () => {
     }
   }
 
-  // ✅ CHECK AUTH
   const checkAuth = async () => {
     if (!token.value) {
       isAuthenticated.value = false
       return false
     }
-
+    
     try {
       const response = await api.get('/users/me/')
       user.value = response.data
@@ -150,7 +146,6 @@ export const useAuth = defineStore('auth', () => {
     } catch (error) {
       console.error('Erro ao verificar autenticação:', error)
       
-      // Tentar renovar token
       if (refreshToken.value) {
         const newToken = await refreshAccessToken()
         if (newToken) return true
@@ -166,7 +161,7 @@ export const useAuth = defineStore('auth', () => {
     token,
     isAuthenticated,
     login,
-    register,
+    signup,  // ✅ MUDEI DE register PARA signup
     logout,
     checkAuth,
     refreshAccessToken

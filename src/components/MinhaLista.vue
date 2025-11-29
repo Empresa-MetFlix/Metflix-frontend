@@ -13,7 +13,7 @@
             placeholder="Buscar na sua lista..."
             class="search-input"
           >
-          <span class="search-icon">🔍</span>
+          <span class="search-icon"></span>
         </div>
 
         <!-- FILTROS -->
