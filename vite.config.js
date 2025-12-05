@@ -2,10 +2,12 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import vueDevtools from 'vite-plugin-vue-devtools'
 
 export default defineConfig({
   plugins: [
     vue(),
+    vueDevtools(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [

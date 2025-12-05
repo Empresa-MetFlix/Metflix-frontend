@@ -452,11 +452,13 @@ onUnmounted(() => {
 }
 
 .navbar-logo {
-  color: var(--metflix-red);
-  font-size: 1.73rem;
+  color: #e50914;
+  font-size: 1.75rem;
   font-weight: 900;
-  letter-spacing: 0.1rem;
   text-decoration: none;
+  letter-spacing: -1px;
+  white-space: nowrap;
+  transition: opacity 0.2s;
 }
 
 .navbar-links {
@@ -676,6 +678,7 @@ onUnmounted(() => {
 /* NOTIFICAÇÕES */
 .notification-container {
   position: relative;
+  margin-top: 5px;
 }
 
 .notification-badge {

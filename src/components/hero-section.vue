@@ -9,6 +9,7 @@
       :style="{ backgroundImage: `url('${movie.backgroundImage}')` }"
     >
       <div class="hero-overlay"></div>
+      <div class="hero-slide__gradient"></div>
     </div>
     
     <!-- ✅ CONTEÚDO COM POSITION ABSOLUTE - UM POR VEZ -->
@@ -177,8 +178,6 @@ onUnmounted(() => {
     rgba(20,20,20,0) 30%
   );
 }
-
-/* ✅ WRAPPER DO CONTEÚDO - POSITION ABSOLUTE */
 .hero-content-wrapper {
   position: absolute;
   inset: 0;
@@ -358,5 +357,13 @@ onUnmounted(() => {
   color: #fff;
   font-weight: 500;
   font-size: 1rem; /* ✅ Reduzido de 1.1rem */
+}
+.hero-slide__gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 25%;
+  background: linear-gradient(to bottom, transparent, rgba(20, 20, 20, 0.9) 80%, rgb(20, 20, 20) 100%);
 }
 </style>

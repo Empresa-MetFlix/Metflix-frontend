@@ -1,32 +1,31 @@
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="isOpen" class="genre-modal" @click="closeModal">
-        <div class="genre-modal__content" @click.stop>
-          <!-- HEADER -->
+      <div v-if="isOpen" class="genre-modal">
+        <div class="genre-modal__overlay" @click="closeModal"></div>
+        
+        <div class="genre-modal__content">
           <div class="genre-modal__header">
-            <button class="genre-modal__back" @click="closeModal">
-              <ArrowLeft class="back-icon" />
-            </button>
-            <h1 class="genre-modal__title">{{ genreTitle }}</h1>
-            <button class="genre-modal__close" @click="closeModal">
+            <div class="genre-modal__header-left">
+              <button class="genre-modal__back" @click="closeModal" aria-label="Voltar">
+                <ArrowLeft class="back-icon" />
+              </button>
+              <h1 class="genre-modal__title">{{ genreTitle }}</h1>
+            </div>
+            
+            <button class="genre-modal__close" @click="closeModal" aria-label="Fechar">
               <X class="close-icon" />
             </button>
           </div>
 
-          <!-- GRID DE FILMES -->
-          <div class="genre-modal__grid">
-            <div 
-              v-for="movie in movies" 
-              :key="movie.id"
-              class="genre-modal__card"
-              @click="selectMovie(movie)"
-            >
-              <img 
-                :src="movie.image" 
-                :alt="movie.title" 
-                class="genre-modal__card-image"
-                @error="handleImageError"
+          <div class="genre-modal__body">
+            <div class="genre-modal__grid">
+              <MovieCard
+                v-for="movie in movies"
+                :key="movie.id"
+                :movie="movie"
+                :is-carousel="false"
+                @select-movie="selectMovie"
               />
             </div>
           </div>
@@ -37,7 +36,9 @@
 </template>
 
 <script setup>
+import { onMounted, onUnmounted } from 'vue'
 import { ArrowLeft, X } from 'lucide-vue-next'
+import MovieCard from './movie-card.vue'
 
 const props = defineProps({
   isOpen: {
@@ -64,101 +65,203 @@ const selectMovie = (movie) => {
   emit('select-movie', movie)
 }
 
-const handleImageError = (event) => {
-  event.target.src = 'https://via.placeholder.com/300x170/141414/ffffff?text=Sem+Imagem'
+const handleEscape = (e) => {
+  if (e.key === 'Escape' && props.isOpen) {
+    closeModal()
+  }
 }
+
+onMounted(() => {
+  document.addEventListener('keydown', handleEscape)
+  if (props.isOpen) {
+    document.body.style.overflow = 'hidden'
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEscape)
+  document.body.style.overflow = ''
+})
 </script>
 
 <style scoped>
 .genre-modal {
   position: fixed;
   inset: 0;
-  background-color: #141414;
-  z-index: 1000;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
   overflow-y: auto;
+  background-color: #141414;
+}
+
+.genre-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1;
 }
 
 .genre-modal__content {
+  position: relative;
+  width: 100%;
   min-height: 100vh;
-  padding-bottom: 4rem;
+  z-index: 2;
+  background-color: #141414;
 }
 
-/* ✅ HEADER */
 .genre-modal__header {
   position: sticky;
   top: 0;
-  background-color: #141414;
-  z-index: 10;
+  background: linear-gradient(
+    to bottom,
+    rgba(20, 20, 20, 1) 0%,
+    rgba(20, 20, 20, 0.98) 70%,
+    rgba(20, 20, 20, 0.95) 100%
+  );
+  backdrop-filter: blur(10px);
+  z-index: 200;
   display: flex;
   align-items: center;
-  padding: 1rem 4%;
-  gap: 1rem;
+  justify-content: space-between;
+  padding: 20px 4%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.genre-modal__header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
 }
 
 .genre-modal__back,
 .genre-modal__close {
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   color: #fff;
   cursor: pointer;
-  padding: 8px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .genre-modal__back:hover,
 .genre-modal__close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.1);
 }
 
 .back-icon,
 .close-icon {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .genre-modal__title {
-  flex: 1;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 1.8rem;
+  font-weight: 900;
   color: #fff;
   margin: 0;
+  letter-spacing: -0.5px;
 }
 
-/* ✅ GRID */
+.genre-modal__body {
+  padding: 40px 4% 80px;
+}
+
 .genre-modal__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1rem;
-  padding: 2rem 4%;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+  animation: fadeInUp 0.5s ease-out;
 }
 
-.genre-modal__card {
-  aspect-ratio: 16 / 9;
-  border-radius: 4px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.2s ease;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.genre-modal__card:hover {
-  transform: scale(1.05);
+.modal-fade-enter-active {
+  transition: opacity 0.3s ease-out;
 }
 
-.genre-modal__card-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* ✅ TRANSIÇÕES */
-.modal-fade-enter-active,
 .modal-fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease-in;
 }
 
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+@media (max-width: 1200px) {
+  .genre-modal__grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .genre-modal__header {
+    padding: 16px 3%;
+  }
+
+  .genre-modal__header-left {
+    gap: 12px;
+  }
+
+  .genre-modal__title {
+    font-size: 1.5rem;
+  }
+
+  .genre-modal__back,
+  .genre-modal__close {
+    width: 40px;
+    height: 40px;
+  }
+
+  .back-icon,
+  .close-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .genre-modal__body {
+    padding: 24px 3% 60px;
+  }
+
+  .genre-modal__grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .genre-modal__title {
+    font-size: 1.25rem;
+  }
+
+  .genre-modal__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .genre-modal__body {
+    padding: 20px 3% 50px;
+  }
 }
 </style>
